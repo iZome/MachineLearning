@@ -35,6 +35,27 @@ legendres <- function(
     func <- 2**q * func
     }
 
+## make legendre expression
+legendre_expression <- function(
+    x,q
+    )
+    {
+
+    }
+
+difference <- function(
+    x,
+    betas10order,
+    betas_g_fitted
+    )
+    {
+        diff <- 0
+        for(i in 1:length(betas_g_fitted)){
+            diff <- diff + betas_g_fitted[i] * legendres(x,i)
+        }
+        diff^2
+    }
+
 ## generate n values from uniform distribution with limits [-1,1]
 generateUniformValues <- function(n)
     {
@@ -78,6 +99,8 @@ makeModelg <- function(
 measureOverfit <- function(
     x_values,
     y_values,
+    betas10order,
+    sigma,
     order1 = 10,
     order2 = 2
     )
@@ -90,27 +113,28 @@ measureOverfit <- function(
       x_test_data <- x_values[!(x_values %in% x_values[x_train_indexes])]
       y_test_data <- y_values[!(x_values %in% x_values[x_train_indexes])]
 
-      y_2g <- lm(y_train_data ~ makeModelg(2,x_train_data))
-      y_10g <- lm(y_train_data ~ makeModelg(10,x_train_data))
+      y_2g <- lm(y_values~ makeModelg(2,x_values))
+      y_10g <- lm(y_values ~ makeModelg(10,x_values))
 
       betasg2 <- unname(coef(y_2g))
       betasg10 <- unname(coef(y_10g))
       betasg2[is.na(betasg2)] <- 0
       betasg10[is.na(betasg10)] <- 0
 
-      g10_y <- targetFunc2(x_test_data, order1, betasg10)
-      g2_y <- targetFunc2(x_test_data, order2, betasg2)
+      biasg2 <- integrate(difference,-1,1,betas10order,betasg2)
+      biasg2 <- biasg2$value
+
+      biasg10 <- integrate(difference,-1,1,betas10order,betasg10)
+      biasg10 <- biasg10$value
+      #print(biasg2)
+      #print(biasg10)
 
       #plot_run(x_values, y_values, x_test_data, g10_y, g2_y)
 
-      err_g10 <- y_test_data - g10_y
-      err_g2 <- y_test_data - g2_y
+      err_g10 <- biasg10 + sigma^2
+      err_g2 <- biasg2 + sigma^2
 
-      meanSE_g10 <- sum(err_g10^2)/length(g10_y)
-      meanSE_g2 <- sum(err_g2^2)/length(g2_y)
-
-      E <- (meanSE_g10 - meanSE_g2)
-      E <- E
+      E <- err_g10 - err_g2
       E
     }
 
@@ -125,8 +149,9 @@ makeErrorMatrix <- function(
         x_values <- sort(x_values)
         y_values <- targetFunc2(x_values, 10, betas10order)
           for(l in 1:length(sigma)){
-              y_values <- y_values + rnorm(n = length(x_values), mean = 0, sd = sigma[l]^2)
-              m[k,l] <- measureOverfit(x_values, y_values )
+              sigma_l <- sigma[l]
+              y_values <- y_values + rnorm(n = length(x_values), mean = 0, sd = sigma_l^2)
+              m[k,l] <- measureOverfit(x_values, y_values, betas10order, sigma_l)
           }
       }
       m
@@ -159,15 +184,8 @@ task2i <- function()
 
       x <- generateUniformValues(60)
       x <- sort(x)
-      # b10order <- targetFunc2(x, 10, betas10order)
-      # bg2 <- targetFunc2(x, 2, betasg2)
-      # bg10 <- targetFunc2(x, 10, betasg10)
-      # print(N)
-      # plot(x, b10order, col = "blue")
-      # lines(x, bg2,type ="p", col = "pink")
-      # lines(x, bg10, type = "p", col = "yellow")
 
-      m_error2 <- avg_runs(20, N, sigma)
+      m_error2 <- avg_runs(5, N, sigma)
 
       colnames(m_error2) <- sigma
       rownames(m_error2) <- N
@@ -193,7 +211,7 @@ plot_g10_minus_g2 <- function(
           theme_bw() + theme(axis.text.x=element_text(size=9, angle=0, vjust=0.3),
                      axis.text.y=element_text(size=11),
                      plot.title=element_text(size=11))
-      ggsave("smoothedGrid.pdf")
+      ggsave("smoothedGrid2.pdf")
 
       ggplot(gg,aes(x=Var1,y=Var2))+
           geom_tile(aes(fill = value)) +
@@ -202,9 +220,9 @@ plot_g10_minus_g2 <- function(
           theme_bw() + theme(axis.text.x=element_text(size=9, angle=0, vjust=0.3),
                      axis.text.y=element_text(size=11),
                      plot.title=element_text(size=11))
-      ggsave("normalGrid.pdf")
+      ggsave("normalGrid2.pdf")
 
-      pdf("3D-plot.pdf")
+      pdf("3D-plot2.pdf")
             persp3D(x = N, y = sigma, z = m_error, colvar = m_error , clim = c(-10,10), zlim = c(-10,10))
       dev.off()
 
@@ -224,47 +242,5 @@ plot_run <- function(
       lines(x_test_data, g2_y, type="b", col = "yellowgreen")
       legend(0.8,0.5, legend = c("The orginal", "g10", "g2"), col = c("green", "hotpink2", "yellowgreen"), lty = 1:2, cex=0.8)
     }
-
-tmp_func <- function()
-    {
-      betas10order <- generateUniformValues(11)
-      x <- generateUniformValues(50)
-      x <- sort(x)
-
-      split_point <- floor(length(x)/2)
-
-      x_train_indexes <- which(x %in% sample(x,split_point))
-      x_train <- x[x_train_indexes]
-      x_test <- x[!(x %in% x[x_train_indexes])]
-      print(length(x_train))
-      print(length(x_test))
-
-      b10order <- targetFunc2(x, 10, betas10order)
-
-      b10order_train <- b10order[x_train_indexes]
-      b10order_test <- b10order[!x %in% x[x_train_indexes]]
-      print(length(b10order_train))
-      print(length(b10order_test))
-
-      fit_order <- 2
-      y <- lm(b10order_train ~ makeModelg(fit_order, x_train))
-
-      fitted_betas <- c( unname(coef(y)))
-      fitted_betas[is.na(fitted_betas)] <- 0
-      print(fitted_betas)
-      print(coef(y))
-      y2 <- targetFunc2(x_test, fit_order, fitted_betas)
-
-      png("fit2.png")
-      par(mfrow = c(1,2))
-      plot(x_test,y2,type = "b", col = "red")
-      plot(x,b10order, type = "b")
-      dev.off()
-      png("fit3.png")
-      plot(x_test,y2,type = "b", col = "red", ylim = c(-1,1.6))
-      lines(x_train,b10order_train, type = "b")
-      dev.off()
-    }
-tmp_func()
 
 task2i()
