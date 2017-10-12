@@ -43,7 +43,17 @@ difference <- function(
     )
     {
         diff <- 0
-        for(i in 1:min(c(length(betas10order),length(betas_g_fitted)))){
+
+        length_measure <- length(betas10order) - length(betas_g_fitted)
+        if(length_measure > 0) {
+            betas_g_fitted <- c(betas_g_fitted, rep(0, length_measure))
+        }else{
+          if(length_measure < 0){
+            betas10order <- c(betas10order, rep(0,-length_measure))
+          }
+        }
+
+        for(i in 1:length(betas10order)){
             diff <- diff + (betas10order[i] - betas_g_fitted[i]) * legendres(x,i)
         }
         diff^2
@@ -100,18 +110,16 @@ measureOverfit <- function(
     {
       y_2g <- lm(y_values~ makeModelg(2,x_values))
       y_10g <- lm(y_values ~ makeModelg(10,x_values))
-      print(y_2g)
-      print(y_10g)
 
       betasg2 <- unname(coef(y_2g))
       betasg10 <- unname(coef(y_10g))
-      #betasg2[is.na(betasg2)] <- 0
-      #betasg10[is.na(betasg10)] <- 0
+      betasg2[is.na(betasg2)] <- 0
+      betasg10[is.na(betasg10)] <- 0
 
-      biasg2 <- integrate(difference,-1,1,betasQorder,betasg2)
+      biasg2 <- integrate(difference,-1,1,betasQorder,betasg2, rel.tol = 1.5e-2)
       biasg2 <- biasg2$value
 
-      biasg10 <- integrate(difference,-1,1,betasQorder,betasg10)
+      biasg10 <- integrate(difference,-1,1,betasQorder,betasg10, rel.tol = 1.5e-2)
       biasg10 <- biasg10$value
 
       err_g10 <- biasg10 + sigma^2
@@ -174,11 +182,11 @@ task2i <- function()
       N = seq(20,110, by=1)
       sigma = seq(0.2, 1.1, by=0.04)
 
-      m_error <- avg_runs_i(2, N, sigma)
+      m_error <- avg_runs_i(40, N, sigma)
 
       colnames(m_error) <- sigma
       rownames(m_error) <- N
-      write.table(m_error,"N1sig04Run20.csv")
+      write.table(m_error,"N1sig004Run40.csv")
 
       plot_g10_minus_g2(m_error, N, sigma)
 
@@ -189,17 +197,15 @@ makeErrorMatrix_ii <- function(
     sigma,
     Q_f
     ){
-      m <- matrix(0L, nrow = length(N), ncol = length(sigma))
+      m <- matrix(0L, nrow = length(N), ncol = length(Q_f))
       for(k in 1:length(N)){
         x_values <- generateUniformValues(N[k])
         x_values <- sort(x_values)
           print(N[k])
           for(l in 1:length(Q_f)){
-              betasQorder <- generateUniformValues(Q_f[l]+1)
-              print(betasQorder)
               print(Q_f[l])
+              betasQorder <- generateUniformValues(Q_f[l]+1)
               y_values <- targetFunc2(x_values, Q_f[l], betasQorder) + rnorm(n = length(x_values), mean = 0, sd = sigma^2)
-              print(y_values)
               m[k,l] <- measureOverfit(x_values, y_values, betasQorder, sigma)
           }
       }
@@ -213,10 +219,11 @@ avg_runs_ii <- function(
     sigma
     )
     {
-      m <- matrix(0L, nrow = length(N), ncol = length(sigma))
+      m <- matrix(0L, nrow = length(N), ncol = length(Q_f))
       for(i in 1:n_avgs){
           new_m <- makeErrorMatrix_ii(N, sigma, Q_f)
           m <- update_matrix_avg(m, new_m, i)
+          plot_g10_minus_g2_ii(m,1,1)
       }
       print(m)
     }
@@ -227,12 +234,15 @@ task2ii <- function()
       Q_f <- seq(1,40, by=1)
       sigma <- 0.2
 
-      m_error <- avg_runs_ii(2, N, Q_f, sigma)
+      m_error <- avg_runs_ii(10, N, Q_f, sigma)
 
       colnames(m_error) <- Q_f
       rownames(m_error) <- N
+      write.table(m_error,"N1Q_f1Run10.csv")
+      print(max(m_error))
+      print(min(m_error))
 
-      plot_g10_minus_g2(m_error,1,1)
+      plot_g10_minus_g2_ii(m_error,1,1)
 
     }
 
@@ -249,21 +259,21 @@ plot_g10_minus_g2 <- function(
       ggplot(gg,aes(x=Var1,y=Var2))+
           #geom_tile(aes(fill = value)) +
           geom_raster(aes(fill = value)) +
-          scale_fill_gradientn(colours = topo.colors(10), limits = c(-0.5,3)) +
-          labs(x="N", y=expression(sigma), title="Matrix") +
+          scale_fill_gradientn(colours = topo.colors(10), limits = c(-0.5,10)) +
+          labs(x="N", y=expression(sigma), title="Matrix avgeraged over 40 independent runs") +
           theme_bw() + theme(axis.text.x=element_text(size=9, angle=0, vjust=0.3),
                      axis.text.y=element_text(size=11),
                      plot.title=element_text(size=11))
-      ggsave("smoothedGridtaskii.pdf")
+      ggsave("N1sig004Run40task2iSmooth.pdf")
 
       ggplot(gg,aes(x=Var1,y=Var2))+
           geom_tile(aes(fill = value)) +
-          scale_fill_gradientn(colours = colorRamps::matlab.like2(10), limits = c(-0.5,3)) +
-          labs(x="N", y=expression(sigma), title="Matrix") +
+          scale_fill_gradientn(colours = colorRamps::matlab.like2(10), limits = c(-0.5,10)) +
+          labs(x=expression(italic("N")), y=expression(sigma), title="Matrix avgeraged over 40 independent runs") +
           theme_bw() + theme(axis.text.x=element_text(size=9, angle=0, vjust=0.3),
                      axis.text.y=element_text(size=11),
                      plot.title=element_text(size=11))
-      ggsave("normalGridtaskii.pdf")
+      ggsave("N1sig004Run40task2i.pdf")
 
       #pdf("3D-plot2.pdf")
       #      persp3D(x = N, y = sigma, z = m_error, colvar = m_error , clim = c(-10,10), zlim = c(-2,2))
@@ -271,11 +281,45 @@ plot_g10_minus_g2 <- function(
 
     }
 
+plot_g10_minus_g2_ii <- function(
+    m_error,
+    N,
+    sigma
+    )
+    {
+      gg <- melt(m_error)
+      str(gg)
+
+      ggplot(gg,aes(x=Var1,y=Var2))+
+          #geom_tile(aes(fill = value)) +
+          geom_raster(aes(fill = value)) +
+          scale_fill_gradientn(colours = topo.colors(10), limits = c(-0.5,3)) +
+          labs(x="N", y=expression("Q"[f]), title="Matrix") +
+          theme_bw() + theme(axis.text.x=element_text(size=9, angle=0, vjust=0.3),
+                     axis.text.y=element_text(size=11),
+                     plot.title=element_text(size=11))
+      ggsave("smoothedGridtaskii.pdf")
+
+      ggplot(gg,aes(x=Var1,y=Var2))+
+          geom_tile(aes(fill = value)) +
+          scale_fill_gradientn(colours = colorRamps::matlab.like2(10), limits = c(-1,15)) +
+          labs(x="N", y=expression("Q"[f]), title="Matrix") +
+          theme_bw() + theme(axis.text.x=element_text(size=9, angle=0, vjust=0.3),
+                     axis.text.y=element_text(size=11),
+                     plot.title=element_text(size=11))
+      ggsave("normalGridtaskii.pdf")
+
+    }
+
 read_table_from_file <- function()
     {
-      m_file <- as.matrix(read.table("N1sig005Run20.csv", check.names = FALSE))
+      m_file <- as.matrix(read.table("N1sig01Run20.csv", check.names = FALSE))
       print((m_file[1:20,1:20]))
       plot_g10_minus_g2(m_file, 1, 1)
+
+      #m_file <- as.matrix(read.table("N1Q_f1Run10.csv", check.names = FALSE))
+      #print((m_file[1:20,1:20]))
+      #plot_g10_minus_g2_ii(m_file, 1, 1)
     }
 
 #optional, good for viewing if the function fits are good or not
@@ -293,6 +337,6 @@ plot_run <- function(
       legend(0.8,0.5, legend = c("The orginal", "g10", "g2"), col = c("green", "hotpink2", "yellowgreen"), lty = 1:2, cex=0.8)
     }
 
-#task2i()
+task2i()
 #read_table_from_file()
-task2ii()
+#task2ii()
