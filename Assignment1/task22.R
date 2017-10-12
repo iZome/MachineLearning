@@ -35,13 +35,6 @@ legendres <- function(
     func <- 2**q * func
     }
 
-## make legendre expression
-legendre_expression <- function(
-    x,q
-    )
-    {
-
-    }
 
 difference <- function(
     x,
@@ -50,8 +43,8 @@ difference <- function(
     )
     {
         diff <- 0
-        for(i in 1:length(betas_g_fitted)){
-            diff <- diff + betas_g_fitted[i] * legendres(x,i)
+        for(i in 1:min(c(length(betas10order),length(betas_g_fitted)))){
+            diff <- diff + (betas10order[i] - betas_g_fitted[i]) * legendres(x,i)
         }
         diff^2
     }
@@ -99,37 +92,27 @@ makeModelg <- function(
 measureOverfit <- function(
     x_values,
     y_values,
-    betas10order,
+    betasQorder,
     sigma,
     order1 = 10,
     order2 = 2
     )
     {
-      split_point <- floor(length(x_values)/(5/3))
-      x_train_indexes <- which(x_values %in% sample(x_values,split_point))
-      x_train_data <- x_values[x_train_indexes]
-      y_train_data <- y_values[x_train_indexes]
-
-      x_test_data <- x_values[!(x_values %in% x_values[x_train_indexes])]
-      y_test_data <- y_values[!(x_values %in% x_values[x_train_indexes])]
-
       y_2g <- lm(y_values~ makeModelg(2,x_values))
       y_10g <- lm(y_values ~ makeModelg(10,x_values))
+      print(y_2g)
+      print(y_10g)
 
       betasg2 <- unname(coef(y_2g))
       betasg10 <- unname(coef(y_10g))
-      betasg2[is.na(betasg2)] <- 0
-      betasg10[is.na(betasg10)] <- 0
+      #betasg2[is.na(betasg2)] <- 0
+      #betasg10[is.na(betasg10)] <- 0
 
-      biasg2 <- integrate(difference,-1,1,betas10order,betasg2)
+      biasg2 <- integrate(difference,-1,1,betasQorder,betasg2)
       biasg2 <- biasg2$value
 
-      biasg10 <- integrate(difference,-1,1,betas10order,betasg10)
+      biasg10 <- integrate(difference,-1,1,betasQorder,betasg10)
       biasg10 <- biasg10$value
-      #print(biasg2)
-      #print(biasg10)
-
-      #plot_run(x_values, y_values, x_test_data, g10_y, g2_y)
 
       err_g10 <- biasg10 + sigma^2
       err_g2 <- biasg2 + sigma^2
@@ -138,7 +121,17 @@ measureOverfit <- function(
       E
     }
 
-makeErrorMatrix <- function(
+update_matrix_avg <- function(
+    current_avg,
+    new_matrix,
+    i
+    )
+    {
+      matrix_list <- list(current_avg*(i-1), new_matrix)
+      Reduce("+", matrix_list) / i
+    }
+
+makeErrorMatrix_i <- function(
     N,
     sigma,
     betas10order
@@ -157,7 +150,7 @@ makeErrorMatrix <- function(
       m
     }
 
-avg_runs <- function(
+avg_runs_i <- function(
     n_avgs,
     N,
     sigma
@@ -165,32 +158,81 @@ avg_runs <- function(
     {
       m <- matrix(0L, nrow = length(N), ncol = length(sigma))
       for(i in 1:n_avgs){
+	  print(i)
           betas10order <- generateUniformValues(11)
-          new_m <- makeErrorMatrix(N, sigma, betas10order)
-          matrix_list <- list(m*(i-1), new_m)
-          m <- Reduce("+", matrix_list) / i
-          m
+          new_m <- makeErrorMatrix_i(N, sigma, betas10order)
+          m <- update_matrix_avg(m, new_m, i)
       }
+      print(min(m))
+      print(max(m))
       print(m)
     }
 
 task2i <- function()
     {
 
-      betas10order <- generateUniformValues(11)
-
       N = seq(20,110, by=1)
       sigma = seq(0.2, 1.1, by=0.04)
 
-      x <- generateUniformValues(60)
-      x <- sort(x)
+      m_error <- avg_runs_i(2, N, sigma)
 
-      m_error2 <- avg_runs(5, N, sigma)
+      colnames(m_error) <- sigma
+      rownames(m_error) <- N
+      write.table(m_error,"N1sig04Run20.csv")
 
-      colnames(m_error2) <- sigma
-      rownames(m_error2) <- N
+      plot_g10_minus_g2(m_error, N, sigma)
 
-      plot_g10_minus_g2(m_error2, N, sigma)
+    }
+
+makeErrorMatrix_ii <- function(
+    N,
+    sigma,
+    Q_f
+    ){
+      m <- matrix(0L, nrow = length(N), ncol = length(sigma))
+      for(k in 1:length(N)){
+        x_values <- generateUniformValues(N[k])
+        x_values <- sort(x_values)
+          print(N[k])
+          for(l in 1:length(Q_f)){
+              betasQorder <- generateUniformValues(Q_f[l]+1)
+              print(betasQorder)
+              print(Q_f[l])
+              y_values <- targetFunc2(x_values, Q_f[l], betasQorder) + rnorm(n = length(x_values), mean = 0, sd = sigma^2)
+              print(y_values)
+              m[k,l] <- measureOverfit(x_values, y_values, betasQorder, sigma)
+          }
+      }
+      m
+    }
+
+avg_runs_ii <- function(
+    n_avgs,
+    N,
+    Q_f,
+    sigma
+    )
+    {
+      m <- matrix(0L, nrow = length(N), ncol = length(sigma))
+      for(i in 1:n_avgs){
+          new_m <- makeErrorMatrix_ii(N, sigma, Q_f)
+          m <- update_matrix_avg(m, new_m, i)
+      }
+      print(m)
+    }
+
+task2ii <- function()
+    {
+      N <- seq(20, 60, by=1)
+      Q_f <- seq(1,40, by=1)
+      sigma <- 0.2
+
+      m_error <- avg_runs_ii(2, N, Q_f, sigma)
+
+      colnames(m_error) <- Q_f
+      rownames(m_error) <- N
+
+      plot_g10_minus_g2(m_error,1,1)
 
     }
 
@@ -202,30 +244,38 @@ plot_g10_minus_g2 <- function(
     )
     {
       gg <- melt(m_error)
+      str(gg)
 
       ggplot(gg,aes(x=Var1,y=Var2))+
           #geom_tile(aes(fill = value)) +
           geom_raster(aes(fill = value)) +
-          scale_fill_gradientn(colours = topo.colors(10), limits = c(-2,2)) +
+          scale_fill_gradientn(colours = topo.colors(10), limits = c(-0.5,3)) +
           labs(x="N", y=expression(sigma), title="Matrix") +
           theme_bw() + theme(axis.text.x=element_text(size=9, angle=0, vjust=0.3),
                      axis.text.y=element_text(size=11),
                      plot.title=element_text(size=11))
-      ggsave("smoothedGrid2.pdf")
+      ggsave("smoothedGridtaskii.pdf")
 
       ggplot(gg,aes(x=Var1,y=Var2))+
           geom_tile(aes(fill = value)) +
-          scale_fill_gradientn(colours = colorRamps::matlab.like2(10), limits = c(-4,10)) +
+          scale_fill_gradientn(colours = colorRamps::matlab.like2(10), limits = c(-0.5,3)) +
           labs(x="N", y=expression(sigma), title="Matrix") +
           theme_bw() + theme(axis.text.x=element_text(size=9, angle=0, vjust=0.3),
                      axis.text.y=element_text(size=11),
                      plot.title=element_text(size=11))
-      ggsave("normalGrid2.pdf")
+      ggsave("normalGridtaskii.pdf")
 
-      pdf("3D-plot2.pdf")
-            persp3D(x = N, y = sigma, z = m_error, colvar = m_error , clim = c(-10,10), zlim = c(-10,10))
-      dev.off()
+      #pdf("3D-plot2.pdf")
+      #      persp3D(x = N, y = sigma, z = m_error, colvar = m_error , clim = c(-10,10), zlim = c(-2,2))
+      #dev.off()
 
+    }
+
+read_table_from_file <- function()
+    {
+      m_file <- as.matrix(read.table("N1sig005Run20.csv", check.names = FALSE))
+      print((m_file[1:20,1:20]))
+      plot_g10_minus_g2(m_file, 1, 1)
     }
 
 #optional, good for viewing if the function fits are good or not
@@ -243,4 +293,6 @@ plot_run <- function(
       legend(0.8,0.5, legend = c("The orginal", "g10", "g2"), col = c("green", "hotpink2", "yellowgreen"), lty = 1:2, cex=0.8)
     }
 
-task2i()
+#task2i()
+#read_table_from_file()
+task2ii()
