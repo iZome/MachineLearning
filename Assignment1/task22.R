@@ -35,7 +35,7 @@ legendres <- function(
     func <- 2**q * func
     }
 
-
+## function integrated over to find difference between orginal target function and the one fitted
 difference <- function(
     x,
     betas10order,
@@ -203,7 +203,6 @@ makeErrorMatrix_ii <- function(
         x_values <- sort(x_values)
           print(N[k])
           for(l in 1:length(Q_f)){
-              print(Q_f[l])
               betasQorder <- generateUniformValues(Q_f[l]+1)
               y_values <- targetFunc2(x_values, Q_f[l], betasQorder) + rnorm(n = length(x_values), mean = 0, sd = sigma^2)
               m[k,l] <- measureOverfit(x_values, y_values, betasQorder, sigma)
@@ -221,6 +220,7 @@ avg_runs_ii <- function(
     {
       m <- matrix(0L, nrow = length(N), ncol = length(Q_f))
       for(i in 1:n_avgs){
+          print(i)
           new_m <- makeErrorMatrix_ii(N, sigma, Q_f)
           m <- update_matrix_avg(m, new_m, i)
           plot_g10_minus_g2_ii(m,1,1)
@@ -234,11 +234,11 @@ task2ii <- function()
       Q_f <- seq(1,40, by=1)
       sigma <- 0.2
 
-      m_error <- avg_runs_ii(10, N, Q_f, sigma)
+      m_error <- avg_runs_ii(20, N, Q_f, sigma)
 
       colnames(m_error) <- Q_f
       rownames(m_error) <- N
-      write.table(m_error,"N1Q_f1Run10.csv")
+      write.table(m_error,"N1Q_f1Run20.csv")
       print(max(m_error))
       print(min(m_error))
 
@@ -260,7 +260,7 @@ plot_g10_minus_g2 <- function(
           #geom_tile(aes(fill = value)) +
           geom_raster(aes(fill = value)) +
           scale_fill_gradientn(colours = topo.colors(10), limits = c(-0.5,10)) +
-          labs(x="N", y=expression(sigma), title="Matrix avgeraged over 40 independent runs") +
+          labs(x="N", y=expression(sigma), title="Matrix averaged over 40 independent runs") +
           theme_bw() + theme(axis.text.x=element_text(size=9, angle=0, vjust=0.3),
                      axis.text.y=element_text(size=11),
                      plot.title=element_text(size=11))
@@ -269,11 +269,11 @@ plot_g10_minus_g2 <- function(
       ggplot(gg,aes(x=Var1,y=Var2))+
           geom_tile(aes(fill = value)) +
           scale_fill_gradientn(colours = colorRamps::matlab.like2(10), limits = c(-0.5,10)) +
-          labs(x=expression(italic("N")), y=expression(sigma), title="Matrix avgeraged over 40 independent runs") +
+          labs(x=expression(italic("N")), y=expression(sigma), title="Matrix averaged over 40 independent runs") +
           theme_bw() + theme(axis.text.x=element_text(size=9, angle=0, vjust=0.3),
                      axis.text.y=element_text(size=11),
                      plot.title=element_text(size=11))
-      ggsave("N1sig004Run40task2i.pdf")
+      ggsave("N1sig004Run40task2i.png")
 
       #pdf("3D-plot2.pdf")
       #      persp3D(x = N, y = sigma, z = m_error, colvar = m_error , clim = c(-10,10), zlim = c(-2,2))
@@ -294,20 +294,20 @@ plot_g10_minus_g2_ii <- function(
           #geom_tile(aes(fill = value)) +
           geom_raster(aes(fill = value)) +
           scale_fill_gradientn(colours = topo.colors(10), limits = c(-0.5,3)) +
-          labs(x="N", y=expression("Q"[f]), title="Matrix") +
+          labs(x=expression(italic("N")), y=expression(italic("Q"[f])), title="Matrix averaged over 20 independent runs") +
           theme_bw() + theme(axis.text.x=element_text(size=9, angle=0, vjust=0.3),
                      axis.text.y=element_text(size=11),
                      plot.title=element_text(size=11))
-      ggsave("smoothedGridtaskii.pdf")
+      ggsave("smoothedGridtaskii20.png")
 
       ggplot(gg,aes(x=Var1,y=Var2))+
           geom_tile(aes(fill = value)) +
           scale_fill_gradientn(colours = colorRamps::matlab.like2(10), limits = c(-1,15)) +
-          labs(x="N", y=expression("Q"[f]), title="Matrix") +
+          labs(x=expression(italic("N")), y=expression(italic("Q"[f])), title="Matrix averaged over 20 independent runs") +
           theme_bw() + theme(axis.text.x=element_text(size=9, angle=0, vjust=0.3),
                      axis.text.y=element_text(size=11),
                      plot.title=element_text(size=11))
-      ggsave("normalGridtaskii.pdf")
+      ggsave("normalGridtaskii20.png")
 
     }
 
@@ -337,6 +337,6 @@ plot_run <- function(
       legend(0.8,0.5, legend = c("The orginal", "g10", "g2"), col = c("green", "hotpink2", "yellowgreen"), lty = 1:2, cex=0.8)
     }
 
-task2i()
-#read_table_from_file()
+#task2i()
+read_table_from_file()
 #task2ii()

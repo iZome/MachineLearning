@@ -102,6 +102,13 @@ plot3tf1tf2 <- function(
       legend(0.5,0.2, legend = c(expression(beta["set 1"]), expression(beta["set 2"]), expression(beta["set 3"])),
              col = c("blue", "mediumspringgreen", "skyblue"), lty=1:2, cex=0.8)
       dev.off()
+
+      tf_40 <- targetFunc1(x,40)
+      tf_40_2 <- targetFunc2(x,40)
+      png("legendre40.png")
+      plot(x,tf_40, type = "l", col = "blue")
+      lines(x,tf_40_2, type = "l", col = "red")
+      dev.off()
     }
 plot1a()
 plot3tf1tf2()
