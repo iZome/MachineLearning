@@ -1,8 +1,13 @@
 ## Libraries and seed
 library(ggplot2)
+library(tcltk)
+library(tikzDevice)
 set.seed(420)
 ## Help functions
 
+options(tikzMetricPackages = c("\\usepackage[utf8]{inputenc}","\\usepackage[T1]{fontenc}", "\\usetikzlibrary{calc}", "\\usepackage{amssymb}"))
+
+# Take a expression and compute the values based on input z
 make_data_set <- function(
     expression,
     x
@@ -12,7 +17,7 @@ make_data_set <- function(
         return(y_dataset)
     }
 
-## legendre expression within sum formula
+# legendre expression within sum formula
 l <- function(
     x,q,k
     ){
@@ -20,7 +25,7 @@ l <- function(
       return(legendre)
     }
 
-## produces legendre polynomial
+# produces legendre polynomial
 legendres <- function(
     x,q
     )
@@ -49,6 +54,7 @@ regularEstimation <- function(
                 Z[i,j] = legendres(data[i, "x"], j-1)
             }
         }
+        #print(lambda)
         weights = solve((t(Z)%*%Z) + (lambda * diag(Q_order + 1)))%*%(t(Z)%*%y)
         return(weights)
     }
@@ -62,19 +68,53 @@ regularLinearization <- function(
         legendreMatrix <- regularEstimation(data, lambda, Q_order)
         pol <- legendreMatrix[1]
         for(i in 2:(Q_order +1)){
-            pol <- pol + (legendreMatrix[i] * (legendres(x, i)))
+            pol <- pol + (legendreMatrix[i] * (legendres(x, i-1)))
         }
         return(pol)
     }
 
-generator <- function(
+create_cv_idexes <- function(N, n_folds){
+    indexes_per_fold <- ceiling(N/n_folds)
+    index_matrix <- matrix(0L, nrow = n_folds, ncol = indexes_per_fold)
+    index_available <- 1:50
+    for(i in 1:n_folds){
+        selected_indexes <- sample(index_available, indexes_per_fold)
+        index_available <- index_available[! index_available %in% selected_indexes]
+
+        index_matrix[i, ] <- selected_indexes
+    }
+    return(index_matrix)
+}
+
+cv_error <- function(
     N,
-    x,
-    func,
-    sigma
+    lambda,
+    data,
+    n_folds,
+    cv_indexes,
+    Q_order
     )
     {
+        indexes <- 1:N
+        #cv_indexes <- create_cv_idexes(N, n_folds)
+        cv_error <- c()
+        for(i in 1:n_folds){
+            test_indexes <- cv_indexes[i, ]
+            train_indexes <- subset(indexes, !(indexes %in% test_indexes))
 
+            x_train <- data$x[train_indexes]
+            x_test <- data$x[test_indexes]
+
+            y_train <- data$y[train_indexes]
+            y_test <- data$y_real[test_indexes]
+
+            temp_data <- data.frame(x = x_train, y =y_train)
+
+            lambdaX <- regularLinearization(x_test, temp_data, lambda, 10)
+
+            cv_error <- c(cv_error, ((y_test - lambdaX)^2))
+        }
+        cv_error <- mean(cv_error)
     }
 
 ## Main functions
@@ -114,9 +154,6 @@ task2ii <- function(
 
         ggplot_df <- data.frame(x,y,lambda0,lambda5)
 
-        print(lambda0)
-        print(lambda5)
-
         ggplot1 <- ggplot(data = ggplot_df, aes(x = x)) +
                    geom_point(aes(y = y, colour = "y with noise")) +
                    geom_line(aes(y = sin(pi*x), colour = "y")) +
@@ -127,14 +164,80 @@ task2ii <- function(
         ggsave("Pictures/task2ii.png")
     }
 
+plot_task2iii <- function
+    (
+    ggplot_df
+    )
+    {
+        lowest_error = ggplot_df[which.min(ggplot_df[,2]),]
+        str(lowest_error)
+        ?tikzTest
+        tikz(file = "latex_plot_task2iii.tex", width = 5, height = 5)
+        ggplot1 <- ggplot(data = ggplot_df, aes(x = lambdas, y = error_vector)) +
+                   geom_line() +
+                   geom_point(data = lowest_error, aes(x = lambdas, y = error_vector), color = "red") +
+                    geom_text(data = lowest_error,
+                              aes(label = paste0("$\\mathrm{CV}_{error}(\\lambda_{",
+                                                  lambdas, "}) = ",
+                                                  round(error_vector,4), "$")),
+                                   hjust = 0.4, vjust = 1.3) +
+                    labs(x = "$\\lambda$", y = "$\\mathrm{CV}_{error}$",
+                         title = paste("CV error- regularisation $\\lambda$ between", ggplot_df[1,"lambdas"], "and", ggplot_df[nrow(ggplot_df), "lambdas"])) +
+                    theme_bw()
+        print(ggplot1)
+        dev.off()
+        ggsave("tempMarie2.svg", device = "svg")
+    }
+
+task2iii <- function(
+
+    )
+    {
+        N = 50
+        sigma = 1
+        x <- runif(n = N, min = -1, max = 1)
+        y <- sin(pi*x) + rnorm(N, 0, sigma)
+        y_real <- sin(pi*x)
+
+        data <- data.frame(x, y, y_real)
+
+        lambda = 0.1
+        lambdas <- seq(from = 0.1, 10, by = 0.1)
+        n_folds = 10
+        error_vector <- integer(length(lambdas))
+        cv_indexes <- create_cv_idexes(N, n_folds)
+
+        pb <- tkProgressBar(title = paste0("Running ", length(lambdas), " lambdas"),
+                            min = 0, max = length(lambdas), width = 300)
+        for(i in 1:length(lambdas)){
+            setTkProgressBar(pb, i, label = paste(round(i/length(lambdas)*100, 0), "% done"))
+            lambda = lambdas[i]
+            print(lambda)
+            error_vector[i] <- cv_error(N = N, lambda = lambdas[i], data = data,
+                                        n_folds = 10, cv_indexes = cv_indexes,
+                                        Q_order = 10)
+        }
+        close(pb)
+        write.csv(error_vector, "error_01")
+        print(error_vector)
+        ggplot_df <- data.frame(lambdas, error_vector)
+        write.csv(ggplot_df, "ggplot_01.csv", row.names = FALSE)
+        plot_task2iii(ggplot_df)
+    }
+
 ## Run
 
 main <- function()
     {
-        task2i()
-        task2ii()
+        #task2i()
+        #task2ii()
+        #task2iii()
+
+        ggplot_df <- read.csv("ggplot_01.csv")
+        plot_task2iii(ggplot_df)
     }
 
 main()
+print(warnings())
 
 ## Plotting against the machine
