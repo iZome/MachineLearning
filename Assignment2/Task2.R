@@ -96,7 +96,7 @@ cv_error <- function(
     )
     {
         indexes <- 1:N
-        #cv_indexes <- create_cv_idexes(N, n_folds)
+        cv_indexes <- create_cv_idexes(N, n_folds)
         cv_error <- c()
         for(i in 1:n_folds){
             test_indexes <- cv_indexes[i, ]
@@ -121,7 +121,7 @@ cv_error <- function(
 
 task2i <- function()
     {
-        N = 50
+        N = 50negligible
         x = runif(n = N, min = -1, max = 1)
 
         y <- quote(sin(pi*x))
@@ -131,12 +131,24 @@ task2i <- function()
 
         ggplot_df <- data.frame(x, y_dataset)
 
+        tikz(file = "Pictures/Task2/task2i.tex", width = 5, height = 5)
         ggplot1 <- ggplot(data = ggplot_df, aes(x = x)) +
-                   geom_point(aes(y = y_dataset, colour = "y with noise")) +
-                   geom_line(aes(y = sin(pi*x), colour = "y")) +
+                   geom_point(aes(y = y_dataset, colour = "$y_{noise}$")) +
+                   geom_line(aes(y = sin(pi*x), colour = "$y$")) +
                    xlab("x") +
-                   ylab("y")
-        ggsave("Pictures/task2i.png")
+                   ylab("y") +
+                   scale_colour_manual("Legend",
+                                     breaks = c("$y_{noise}$", "$y$"),
+                                     values = c("black", "black"),
+                                     guide = guide_legend(override.aes = list(
+                                         linetype = c( "blank", "solid"),
+                                         shape = c( 16, NA)
+                                         ))) +
+                   theme(legend.position = c(0.9, 0.2))
+        #ggsave("Pictures/task2i.png")
+        ggsave("Pictures/Task2/task2i.svg")
+        print(ggplot1)
+        dev.off()
     }
 
 task2ii <- function(
@@ -182,11 +194,14 @@ plot_task2iii <- function
                                                   round(error_vector,4), "$")),
                                    hjust = 0.4, vjust = 1.3) +
                     labs(x = "$\\lambda$", y = "$\\mathrm{CV}_{error}$",
-                         title = paste("CV error- regularisation $\\lambda$ between", ggplot_df[1,"lambdas"], "and", ggplot_df[nrow(ggplot_df), "lambdas"])) +
+                         title = paste("CV error- regularisation $\\lambda$ between",
+                                        ggplot_df[1,"lambdas"], "and",
+                                        ggplot_df[nrow(ggplot_df), "lambdas"])) +
                     theme_bw()
         print(ggplot1)
         dev.off()
         ggsave("tempMarie2.svg", device = "svg")
+        #ggsave("avg_2iii1000runs.png")
     }
 
 task2iii <- function(
@@ -225,6 +240,42 @@ task2iii <- function(
         plot_task2iii(ggplot_df)
     }
 
+task2iii_avg_runs <- function(
+    n_runs
+    )
+    {
+        N = 50
+        sigma = 1
+        n_folds = 10
+        lambdas <- seq(from = 0.1, 10, by = 0.1)
+        error_vector <- integer(length(lambdas))
+        cv_indexes <- create_cv_idexes(N, n_folds)
+        error_result <- error_vector
+
+        pb <- txtProgressBar(min = 0, max = n_runs, style = 3)
+        for(r in 1:n_runs){
+            setTxtProgressBar(pb, r)
+            x <- runif(n = N, min = -1, max = 1)
+            y <- sin(pi*x) + rnorm(N, 0, sigma)
+            y_real <- sin(pi*x)
+
+            data <- data.frame(x, y, y_real)
+
+            for(i in 1:length(lambdas)){
+                error_vector[i] <- cv_error(N = N, lambda = lambdas[i], data = data,
+                                            n_folds = 10, cv_indexes = cv_indexes,
+                                            Q_order = 10)
+            }
+            error_result <- error_result + error_vector
+        }
+        close(pb)
+        error_result <- error_result / n_runs
+        png("test_avg_2ii.png")
+        plot(error_result, type = "b")
+        dev.off()
+        avg_2iii <- data.frame(lambdas, error_result)
+        write.csv(avg_2iii, "avg_2iii.csv", row.names = FALSE)
+    }
 ## Run
 
 main <- function()
@@ -233,7 +284,10 @@ main <- function()
         #task2ii()
         #task2iii()
 
-        ggplot_df <- read.csv("ggplot_01.csv")
+        #task2iii_avg_runs(1000)
+
+        ggplot_df <- read.csv("avg_2iii1000runs.csv")
+        colnames(ggplot_df)[2] <- "error_vector"
         plot_task2iii(ggplot_df)
     }
 

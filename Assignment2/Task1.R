@@ -1,6 +1,7 @@
 ## Libraries and seed
 library(ggplot2)
 library(tcltk)
+library(tikzDevice)
 set.seed(420)
 
 ## Help functions
@@ -26,43 +27,138 @@ fit_function <- function(
 
 ## Main functions
 
+# Task 1, fit two linear functions to y with noise
+# if i >= 1, performs the average of the runs
+# set i = 1 to get only one run
+# plot the two estimated functions with the orginal y - function
+# also plot relative performance for between the two models
+# when averaging many runs, recommended i > 100 for average run
 task1i <- function(i)
     {
         N = 30
 
-        x <- runif(n = N, min = -1, max = 1)
+        sigma = 1
+        b_y <- 0.8
+
+        bias_g_1 <- 0
+        bias_g_2 <- 0
+
+        b_g_1_avg <- 0
+        b_g_2_avg <- 0
+
+        avg_relative_performance <- rep(0, i)
+
+        y_dataset_avg <- rep(0, N)
 
         y_wthout_noise <- quote(0.8 * x)
         y_wth_noise <- quote(0.8 * x + rnorm(1,0,1))
 
-        y_dataset <- make_data_set(y_wth_noise, x)
+        for(k in 1:i){
 
-        g_1 <- quote(0.5 + fit_function(0.5, x, y_dataset, N) * x) # TO DO: prøve å utføre fit_function og få ut verde før settes i quote
-        g_2 <- quote(-0.5 + fit_function(-0.5, x, y_dataset, N) * x)
+            x <- runif(n = N, min = -1, max = 1)
+
+            y_dataset <- make_data_set(y_wth_noise, x)
+            y_dataset_avg <- y_dataset_avg + y_dataset
+
+            b_g_1 <- fit_function(0.5, x, y_dataset, N)
+            b_g_2 <- fit_function(-0.5, x, y_dataset, N)
+
+            b_g_1_avg <- b_g_1_avg + b_g_1
+            b_g_2_avg <- b_g_2_avg + b_g_2
+
+            bias_g_1 <- bias_g_1 + integrate(function(x) (0.5 + (b_g_1 - b_y) * x)^2, -1, 1)$value
+            bias_g_2 <- bias_g_2 + integrate(function(x) (-0.5 + (b_g_2 - b_y) * x)^2, -1, 1)$value
+
+            avg_relative_performance[k] <- bias_g_1 / bias_g_2
+        }
+
+        # Task average of all values
+        bias_g_1 <- bias_g_1 / i
+        bias_g_2 <- bias_g_2 / i
+        b_g_1_avg <- b_g_1_avg / i
+        b_g_2_avg <- b_g_2_avg / i
+        y_dataset <- y_dataset_avg / i
+
+        if(i > 1){
+            x = seq(-1,1, length.out = N)
+        }
+
+        y_values <- eval(y_wthout_noise)
+
+        g_1 <- quote(0.5 + b_g_1_avg * x) # TO DO: prøve å utføre fit_function og få ut verde før settes i quote
+        g_2 <- quote(-0.5 + b_g_1_avg * x)
 
         g_1_values <- eval(g_1)
         g_2_values <- eval(g_2)
-        y_values <- eval(y_wthout_noise)
 
-        g_1_mse <- round(mean((y_values - g_1_values)^2),3)
-        g_2_mse <- round(mean((y_values - g_2_values)^2),3)
+        print(bias_g_1)
+        print(bias_g_2)
 
         ggplot_df <- data.frame(x, y_dataset, y_values, g_1_values, g_2_values)
+        avg_relative_performance_df <- data.frame(x = 1:i, avg_relative_performance)
 
+        # plot fitted function together with orginal function y
+        tikz(file = paste0("Pictures/Task1/task1ibias", i, ".tex"), width = 5, height = 5)
         ggplot1 <- ggplot(data = ggplot_df, aes(x = x)) +
-                   geom_point(aes(y = y_dataset, colour = "y with noise")) +
                    geom_line(aes(y = y_values, colour = "y")) +
-                   geom_line(aes(y = g_1_values, colour = "g_1")) +
-                   geom_line(aes(y = g_2_values, colour = "g_2")) +
-                   scale_colour_manual("Legend",
-                                     breaks = c("y with noise", "y", "g_1", "g_2"),
-                                     values = c("blue", "red", "black", "black")) +
+                   geom_line(aes(y = g_1_values, colour = "$g_1$"), linetype = "dashed") +
+                   geom_line(aes(y = g_2_values, colour = "$g_2$"), linetype = "dashed") +
                    xlab("x") +
                    ylab("y") +
-                   annotate("text", x = -0.1, y = 0.7, label = paste0("MSE(y,g_1) = ", g_1_mse)) +
-                   annotate("text", x = 0.5, y = -0.4, label = paste0("MSE(y,g_2) = ", g_2_mse))
+                   annotate("text", x = -0.1, y = 0.7,
+                            label = paste0("$\\mathrm{BIAS}(y,g_1) = ",
+                                            round(bias_g_1,3),
+                                            "$ \\\\",
+                                            "$g_1 = 0.5 + ",
+                                            round(b_g_1_avg,3),
+                                            " x$")) +
+                   annotate("text", x = 0.5, y = -0.4,
+                            label = paste0("$\\mathrm{BIAS}(y,g_2) = ",
+                            round(bias_g_2,3),
+                            "$ \\\\",
+                            "$g_2 = -0.5 + ",
+                            round(b_g_2_avg,3),
+                            " x$"))
 
-        ggsave(paste0("Pictures/task1i", i, ".png"))
+        if(i == 1){
+            ggplot1 <- ggplot1 +
+            geom_point(aes(y = y_dataset, colour = "$y_{noise}$")) +
+            scale_colour_manual("Legend",
+                              breaks = c("$y_{noise}$", "y", "$g_1$", "$g_2$"),
+                              values = c("blue", "red", "black", "black"),
+                              guide = guide_legend(override.aes = list(
+                                  linetype = c("blank", "solid", "dashed", "dashed"),
+                                  shape = c(16, NA, NA, NA)
+                                  ))) +
+            theme(legend.position = c(0.9, 0.2))
+        }else{
+            print("yo")
+            ggplot1 <- ggplot1 +
+            scale_colour_manual("Legend",
+                              breaks = c( "y", "$g_1$", "$g_2$"),
+                              values = c("blue", "red", "black"),
+                              guide = guide_legend(override.aes = list(
+                                  linetype = c( "solid", "dashed", "dashed"),
+                                  shape = c( NA, NA, NA)
+                                  ))) +
+            theme(legend.position = c(0.9, 0.2))
+        }
+
+        ggsave(paste0("Pictures/Task1/task1i", i, ".png"))
+        #ggsave("Pictures/Task1/task1i.svg", plot = ggplot1, width = 10, height = 8)
+        print(ggplot1)
+        dev.off()
+
+        # plot average relative performance rp and shows value after averaging 1 to i times
+        tikz(file = paste0("Pictures/Task1/task1ibias_avg", i, ".tex"), width = 5, height = 5)
+        ggplot2 <- ggplot(data = avg_relative_performance_df, aes(x = x)) +
+                   geom_line(aes(y = avg_relative_performance, colour = "$rp_{avg}$")) +
+                   xlab("runs") +
+                   ylab("$\\mathrm{BIAS}_{avg}$") +
+                   theme(legend.position = c(0.8, 0.2))
+        ggsave(paste0("Pictures/Task1/task1i_avg", i, ".png"))
+        print(ggplot2)
+        dev.off()
     }
 
 task1ii <- function(
@@ -134,10 +230,19 @@ task1ii <- function(
                    geom_line(aes(y = g_2_error_out, colour = "g_2_2"))
         ggsave("tempMaria.png")
 
+        tikz(file = paste0("Pictures/Task1/task1ii.tex"), width = 5, height = 5)
         ggplot2 <- ggplot(data = error_df, aes(x = test_set_amount)) +
-                   geom_line(aes(y = collection_val, colour = "E_val")) +
-                   geom_line(aes(y = collection_out, colour = "E_out"))
+                   geom_line(aes(y = collection_val, colour = "$E_{val}$")) +
+                   geom_line(aes(y = collection_out, colour = "$E_{out}$")) +
+                   xlab("i") +
+                   ylab("y") +
+                   scale_colour_manual("Legend",
+                                     breaks = c("$E_{val}$", "$E_{out}$"),
+                                     values = c("blue", "red")) +
+                   theme(legend.position = c(0.9, 0.2))
         ggsave("tempHalvor.png")
+        print(ggplot2)
+        dev.off()
     }
 
 ## Run
@@ -147,6 +252,7 @@ main <- function()
         #for(i in 1:10){
         #    task1i(i)
         #}
+        #task1i(20000)
         task1ii()
     }
 
