@@ -121,7 +121,7 @@ cv_error <- function(
 
 task2i <- function()
     {
-        N = 50negligible
+        N = 50
         x = runif(n = N, min = -1, max = 1)
 
         y <- quote(sin(pi*x))
@@ -138,15 +138,15 @@ task2i <- function()
                    xlab("x") +
                    ylab("y") +
                    scale_colour_manual("Legend",
-                                     breaks = c("$y_{noise}$", "$y$"),
+                                     breaks = c( "$y_{noise}$", "$y$"),
                                      values = c("black", "black"),
                                      guide = guide_legend(override.aes = list(
                                          linetype = c( "blank", "solid"),
                                          shape = c( 16, NA)
                                          ))) +
                    theme(legend.position = c(0.9, 0.2))
-        #ggsave("Pictures/task2i.png")
-        ggsave("Pictures/Task2/task2i.svg")
+        ggsave("Pictures/Task2/task2i.png")
+        #ggsave("Pictures/Task2/task2i.svg")
         print(ggplot1)
         dev.off()
     }
@@ -166,14 +166,25 @@ task2ii <- function(
 
         ggplot_df <- data.frame(x,y,lambda0,lambda5)
 
+        tikz(file = "Pictures/Task2/task2ii.tex", width = 5, height = 5)
         ggplot1 <- ggplot(data = ggplot_df, aes(x = x)) +
-                   geom_point(aes(y = y, colour = "y with noise")) +
-                   geom_line(aes(y = sin(pi*x), colour = "y")) +
-                   geom_line(aes(y = lambda0, colour = "lambda0")) +
-                   geom_line(aes(y = lambda5, colour = "lambda5")) +
+                   geom_point(aes(y = y, colour = "$y_{noise}$")) +
+                   geom_line(aes(y = sin(pi*x), colour = "$y$")) +
+                   geom_line(aes(y = lambda0, colour = "$\\lambda_0$"), linetype = "dashed") +
+                   geom_line(aes(y = lambda5, colour = "$\\lambda_5$"), linetype = "dashed") +
                    xlab("x") +
-                   ylab("y")
-        ggsave("Pictures/task2ii.png")
+                   ylab("y") +
+                   scale_colour_manual("Legend",
+                                     breaks = c( "$y_{noise}$", "$y$", "$\\lambda_0$", "$\\lambda_5$"),
+                                     values = c("blue", "red", "black", "black"),
+                                     guide = guide_legend(override.aes = list(
+                                         linetype = c( "blank", "solid", "dashed", "dashed"),
+                                         shape = c( 16, NA, NA, NA)
+                                         ))) +
+                   theme(legend.position = c(0.9, 0.2))
+        ggsave("Pictures/Task2/task2ii.png")
+        print(ggplot1)
+        dev.off()
     }
 
 plot_task2iii <- function
@@ -184,7 +195,7 @@ plot_task2iii <- function
         lowest_error = ggplot_df[which.min(ggplot_df[,2]),]
         str(lowest_error)
         ?tikzTest
-        tikz(file = "latex_plot_task2iii.tex", width = 5, height = 5)
+        tikz(file = "Pictures/Task2/task2iii.tex", width = 5, height = 5)
         ggplot1 <- ggplot(data = ggplot_df, aes(x = lambdas, y = error_vector)) +
                    geom_line() +
                    geom_point(data = lowest_error, aes(x = lambdas, y = error_vector), color = "red") +
@@ -193,15 +204,14 @@ plot_task2iii <- function
                                                   lambdas, "}) = ",
                                                   round(error_vector,4), "$")),
                                    hjust = 0.4, vjust = 1.3) +
-                    labs(x = "$\\lambda$", y = "$\\mathrm{CV}_{error}$",
-                         title = paste("CV error- regularisation $\\lambda$ between",
-                                        ggplot_df[1,"lambdas"], "and",
-                                        ggplot_df[nrow(ggplot_df), "lambdas"])) +
-                    theme_bw()
+                    labs(x = "$\\lambda$", y = "$\\mathrm{CV}_{error}$")
+                    #     title = paste("CV error- regularisation $\\lambda$ between",
+                    #                    ggplot_df[1,"lambdas"], "and",
+                    #                    ggplot_df[nrow(ggplot_df), "lambdas"]))
         print(ggplot1)
         dev.off()
-        ggsave("tempMarie2.svg", device = "svg")
-        #ggsave("avg_2iii1000runs.png")
+        #ggsave("tempMarie2.svg", device = "svg")
+        ggsave("Pictures/Task2/avg_2iii1000runs.png")
     }
 
 task2iii <- function(
@@ -276,6 +286,43 @@ task2iii_avg_runs <- function(
         avg_2iii <- data.frame(lambdas, error_result)
         write.csv(avg_2iii, "avg_2iii.csv", row.names = FALSE)
     }
+
+task2iii_plot_best_lambda <- function(
+    best_lambda
+    )
+    {
+        N = 50
+        sigma = 1
+        x <- runif(n = N, min = -1, max = 1)
+        y <- sin(pi*x) + rnorm(N,0,sigma^2)
+
+        data <- data.frame(x,y)
+
+        lambda_best <- regularLinearization(x, data, best_lambda, 10)
+
+        ggplot_df <- data.frame(x,y,lambda_best)
+
+        tikz(file = "Pictures/Task2/task2iii_best_lambda.tex", width = 5, height = 5)
+        ggplot1 <- ggplot(data = ggplot_df, aes(x = x)) +
+                   geom_point(aes(y = y, colour = "$y_{noise}$")) +
+                   geom_line(aes(y = sin(pi*x), colour = "$y$")) +
+                   geom_line(aes(y = lambda_best,
+                                 colour = paste0("$\\lambda_", best_lambda, "$")),
+                                 linetype = "dashed") +
+                   xlab("x") +
+                   ylab("y") +
+                   scale_colour_manual("Legend",
+                                     breaks = c( "$y_{noise}$", "$y$",  paste0("$\\lambda_", best_lambda, "$")),
+                                     values = c("blue", "black", "black"),
+                                     guide = guide_legend(override.aes = list(
+                                         linetype = c( "blank", "solid", "dashed"),
+                                         shape = c( 16, NA, NA)
+                                         ))) +
+                   theme(legend.position = c(0.9, 0.2))
+        ggsave("Pictures/Task2/task2iii_best_lambda.png")
+        print(ggplot1)
+        dev.off()
+    }
 ## Run
 
 main <- function()
@@ -286,9 +333,10 @@ main <- function()
 
         #task2iii_avg_runs(1000)
 
-        ggplot_df <- read.csv("avg_2iii1000runs.csv")
-        colnames(ggplot_df)[2] <- "error_vector"
-        plot_task2iii(ggplot_df)
+        #ggplot_df <- read.csv("avg_2iii1000runs.csv")
+        #colnames(ggplot_df)[2] <- "error_vector"
+        #plot_task2iii(ggplot_df)
+        task2iii_plot_best_lambda(3.5)
     }
 
 main()
