@@ -1,11 +1,12 @@
 ## Libraries and seed
-library(ggplot2)
-library(tcltk)
-library(tikzDevice)
+library(ggplot2) #Ggplot library used for plotting
+library(tcltk) #Used for loading bar
+library(tikzDevice) #Using tikz to store ggplot as tex
 set.seed(420)
 
 ## Help functions
 
+# calculated function from "quote" expression
 make_data_set <- function(
     expression,
     x
@@ -14,6 +15,7 @@ make_data_set <- function(
         y_dataset <- sapply(x, function(x) eval(expression))
     }
 
+# fit linear model to data with offset
 fit_function <- function(
     b_intercept,
     x,
@@ -85,7 +87,7 @@ task1i <- function(i)
 
         y_values <- eval(y_wthout_noise)
 
-        g_1 <- quote(0.5 + b_g_1_avg * x) # TO DO: prøve å utføre fit_function og få ut verde før settes i quote
+        g_1 <- quote(0.5 + b_g_1_avg * x)
         g_2 <- quote(-0.5 + b_g_1_avg * x)
 
         g_1_values <- eval(g_1)
@@ -119,7 +121,7 @@ task1i <- function(i)
                             "$g_2 = -0.5 + ",
                             round(b_g_2_avg,3),
                             " x$"))
-
+        #Only plot datapoints when running one dataset
         if(i == 1){
             ggplot1 <- ggplot1 +
             geom_point(aes(y = y_dataset, colour = "$y_{noise}$")) +
@@ -132,7 +134,6 @@ task1i <- function(i)
                                   ))) +
             theme(legend.position = c(0.9, 0.2))
         }else{
-            print("yo")
             ggplot1 <- ggplot1 +
             scale_colour_manual("Legend",
                               breaks = c( "y", "$g_1$", "$g_2$"),
@@ -145,8 +146,7 @@ task1i <- function(i)
         }
 
         ggsave(paste0("Pictures/Task1/task1i", i, ".png"))
-        #ggsave("Pictures/Task1/task1i.svg", plot = ggplot1, width = 10, height = 8)
-        print(ggplot1)
+        print(ggplot1) #need to print plot to write to .tex file
         dev.off()
 
         # plot average relative performance rp and shows value after averaging 1 to i times
@@ -161,6 +161,8 @@ task1i <- function(i)
         dev.off()
     }
 
+# finding the val. and out. error for different sizes of training and validation
+# set out of a set with total size N = 30
 task1ii <- function(
     n_training_sets = 10000
     )
@@ -168,17 +170,23 @@ task1ii <- function(
         N = 30
         indexes <- 1:N
 
+        # progress bar
         pb <- tkProgressBar(title = paste0("Running ", n_training_sets, " data sets"),
                             min = 0, max = n_training_sets, width = 300)
 
         length_df <- N - 2*5 +1
-        error_df <- data.frame(g_1_error_val = rep(0,length_df), g_2_error_val = rep(0,length_df),
-                               g_1_error_out = rep(0,length_df), g_2_error_out = rep(0,length_df),
-                               collection_val = rep(0,length_df), collection_out = rep(0,length_df))
+        error_df <- data.frame(g_1_error_val = rep(0,length_df),
+                               g_2_error_val = rep(0,length_df),
+                               g_1_error_out = rep(0,length_df),
+                               g_2_error_out = rep(0,length_df),
+                               collection_val = rep(0,length_df),
+                               collection_out = rep(0,length_df))
+
         for(k in 1:n_training_sets){
             setTkProgressBar(pb, k, label = paste(round(k/n_training_sets*100, 0), "% done"))
             x <- runif(n = N, min = -1, max = 1)
             b_y <- 0.8
+            y_wthout_noise <- 0.8 * x
             y_wth_noise <- quote(0.8 * x + rnorm(1,0,1))
             y_dataset <- make_data_set(y_wth_noise, x)
             for(i in 5:(N-5)){
@@ -197,14 +205,23 @@ task1ii <- function(
                 g_1 <- quote(0.5 + b_g_1 * x_test) # TO DO: prøve å utføre fit_function og få ut verde før settes i quote
                 g_2 <- quote(-0.5 + b_g_2 * x_test)
 
-                g_1_values <- eval(g_1)
-                g_2_values <- eval(g_2)
+                g_1_out <- quote(0.5 + b_g_1 * x)
+                g_2_out <- quote(-0.5 + b_g_2 * x)
 
-                g_1_mse <- round(mean((y_test - g_1_values)^2),5)
-                g_2_mse <- round(mean((y_test - g_2_values)^2),5)
+                g_1_val <- eval(g_1)
+                g_2_val <- eval(g_2)
 
-                g_1_bias <- integrate(function(x) (0.5 + (b_g_1 - b_y) * x)^2, -1, 1)$value + 1
-                g_2_bias <- integrate(function(x) (-0.5 + (b_g_2 - b_y) * x)^2, -1, 1)$value +1
+                g_1_out <- eval(g_1_out)
+                g_2_out <- eval(g_2_out)
+
+                g_1_mse <- round(mean((y_test - g_1_val)^2),5)
+                g_2_mse <- round(mean((y_test - g_2_val)^2),5)
+
+                g_1_bias <- round(mean((y_dataset - g_1_out)^2),5)
+                g_2_bias <- round(mean((y_dataset - g_2_out)^2),5)
+
+                #g_1_bias <- integrate(function(x) (0.5 + (b_g_1 - b_y) * x)^2, -1, 1)$value + 1
+                #g_2_bias <- integrate(function(x) (-0.5 + (b_g_2 - b_y) * x)^2, -1, 1)$value +1
 
                 error_df$g_1_error_val[i-4] <- (error_df$g_1_error_val[i-4]  + g_1_mse)
                 error_df$g_2_error_val[i-4] <- (error_df$g_2_error_val[i-4]  + g_2_mse)
@@ -218,19 +235,19 @@ task1ii <- function(
         }
         close(pb)
         error_df$test_set_amount <- 5:(N-5)
-        print(error_df)
 
         error_df[-7] <- error_df[-7] / n_training_sets
-        print(error_df)
 
+        # Individual errors for g_1 and g_2
         ggplot1 <- ggplot(data = error_df, aes(x = test_set_amount)) +
                    geom_line(aes(y = g_1_error_val, colour = "g_1")) +
                    geom_line(aes(y = g_2_error_val, colour = "g_2")) +
                    geom_line(aes(y = g_1_error_out, colour = "g_1_2")) +
                    geom_line(aes(y = g_2_error_out, colour = "g_2_2"))
-        ggsave("tempMaria.png")
+        ggsave("Pictures/Task2/task2ii1_revamp.png")
 
-        tikz(file = paste0("Pictures/Task1/task1ii.tex"), width = 5, height = 5)
+        # Best error chosen at each i
+        #tikz(file = paste0("Pictures/Task1/task1ii.tex"), width = 5, height = 5)
         ggplot2 <- ggplot(data = error_df, aes(x = test_set_amount)) +
                    geom_line(aes(y = collection_val, colour = "$E_{val}$")) +
                    geom_line(aes(y = collection_out, colour = "$E_{out}$")) +
@@ -240,9 +257,9 @@ task1ii <- function(
                                      breaks = c("$E_{val}$", "$E_{out}$"),
                                      values = c("blue", "red")) +
                    theme(legend.position = c(0.9, 0.2))
-        ggsave("tempHalvor.png")
-        print(ggplot2)
-        dev.off()
+        ggsave("Pictures/Task2/task2ii2_revamp.png")
+        #print(ggplot2)
+        #dev.off()
     }
 
 ## Run
@@ -253,9 +270,11 @@ main <- function()
         #    task1i(i)
         #}
         #task1i(20000)
+        #task1i(1)
         task1ii()
     }
 
 main()
 
 ## Plotting against the machine
+#

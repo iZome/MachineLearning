@@ -39,6 +39,7 @@ legendres <- function(
     return(legendre_polynomial)
     }
 
+# use regularization paramter lambda to train weights use in the model
 regularEstimation <- function(
     data,
     lambda,
@@ -54,11 +55,10 @@ regularEstimation <- function(
                 Z[i,j] = legendres(data[i, "x"], j-1)
             }
         }
-        #print(lambda)
         weights = solve((t(Z)%*%Z) + (lambda * diag(Q_order + 1)))%*%(t(Z)%*%y)
         return(weights)
     }
-
+# use weights from regularEstimation to regularize the legendre based model
 regularLinearization <- function(
     x,
     data,
@@ -73,6 +73,7 @@ regularLinearization <- function(
         return(pol)
     }
 
+# creates n_folds of N indexes from 1 to N
 create_cv_idexes <- function(N, n_folds){
     indexes_per_fold <- ceiling(N/n_folds)
     index_matrix <- matrix(0L, nrow = n_folds, ncol = indexes_per_fold)
@@ -86,6 +87,7 @@ create_cv_idexes <- function(N, n_folds){
     return(index_matrix)
 }
 
+# calculate the cv error
 cv_error <- function(
     N,
     lambda,
@@ -119,6 +121,7 @@ cv_error <- function(
 
 ## Main functions
 
+# plotting underlying function with data set
 task2i <- function()
     {
         N = 50
@@ -146,11 +149,11 @@ task2i <- function()
                                          ))) +
                    theme(legend.position = c(0.9, 0.2))
         ggsave("Pictures/Task2/task2i.png")
-        #ggsave("Pictures/Task2/task2i.svg")
         print(ggplot1)
         dev.off()
     }
 
+# Fit two legendre polynomial with different regularization paramters
 task2ii <- function(
     )
     {
@@ -187,6 +190,7 @@ task2ii <- function(
         dev.off()
     }
 
+# plot result from task 2 iii when finding the best regularization parameter
 plot_task2iii <- function
     (
     ggplot_df
@@ -198,7 +202,9 @@ plot_task2iii <- function
         tikz(file = "Pictures/Task2/task2iii.tex", width = 5, height = 5)
         ggplot1 <- ggplot(data = ggplot_df, aes(x = lambdas, y = error_vector)) +
                    geom_line() +
-                   geom_point(data = lowest_error, aes(x = lambdas, y = error_vector), color = "red") +
+                   geom_point(data = lowest_error,
+                              aes(x = lambdas, y = error_vector),
+                              color = "red") +
                     geom_text(data = lowest_error,
                               aes(label = paste0("$\\mathrm{CV}_{error}(\\lambda_{",
                                                   lambdas, "}) = ",
@@ -210,10 +216,11 @@ plot_task2iii <- function
                     #                    ggplot_df[nrow(ggplot_df), "lambdas"]))
         print(ggplot1)
         dev.off()
-        #ggsave("tempMarie2.svg", device = "svg")
         ggsave("Pictures/Task2/avg_2iii1000runs.png")
     }
 
+# Using CV-error to fund the best regularization parameter for dataset made by
+# this model
 task2iii <- function(
 
     )
@@ -250,6 +257,9 @@ task2iii <- function(
         plot_task2iii(ggplot_df)
     }
 
+# averaging the CV-error for the different lambdas over n_runs dataset
+# takes some hours to run on large amounts of dataset,
+# if using this more parallelization would be a good step to improve performance
 task2iii_avg_runs <- function(
     n_runs
     )
@@ -287,6 +297,7 @@ task2iii_avg_runs <- function(
         write.csv(avg_2iii, "avg_2iii.csv", row.names = FALSE)
     }
 
+# plot the best lambda found, a simplification of the plot for ii
 task2iii_plot_best_lambda <- function(
     best_lambda
     )
@@ -327,12 +338,13 @@ task2iii_plot_best_lambda <- function(
 
 main <- function()
     {
-        #task2i()
-        #task2ii()
+        task2i()
+        task2ii()
         #task2iii()
 
-        #task2iii_avg_runs(1000)
+        task2iii_avg_runs(1000)
 
+        #big rung for iii, stored to save computation if replot is nessesary
         #ggplot_df <- read.csv("avg_2iii1000runs.csv")
         #colnames(ggplot_df)[2] <- "error_vector"
         #plot_task2iii(ggplot_df)
@@ -340,6 +352,3 @@ main <- function()
     }
 
 main()
-print(warnings())
-
-## Plotting against the machine
