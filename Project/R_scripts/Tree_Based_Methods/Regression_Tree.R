@@ -1,9 +1,11 @@
-## Libraries
+## Libraries and seed
 library(caret)
 library(readr)
 library(tree)
 library(randomForest)
 library(gbm)
+
+set.seed(420)
 
 #-------------------#
 

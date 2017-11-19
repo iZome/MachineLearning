@@ -1,6 +1,13 @@
+## Libraries and seed
 library(h2o)
 library(caret)
 library(reshape2)
+
+set.seed(420)
+
+#-------------------#
+
+## Data
 
 path_to_here <- getwd()
 
@@ -9,7 +16,7 @@ unclassified_data <- read.csv(paste0(path_to_here, "/data/Test_Digits_20171108.c
 
 local.h2o <- h2o.init(ip = "localhost", port = 54321, startH2O = TRUE, nthreads = -1)
 
-train_data[,1] <- as.factor(train_data[, 1] %% 2)
+train_data[,1] <- as.factor(train_data[, 1])
 split_train_test <- createDataPartition(train_data$Digit, p = 0.8, list = FALSE)
 test_data <- train_data[-split_train_test, ]
 train_data <- train_data[split_train_test, ]
@@ -17,6 +24,10 @@ train_data <- train_data[split_train_test, ]
 train_data <- as.h2o(train_data)
 unclassified_data <- as.h2o(unclassified_data)
 test_data <- as.h2o(test_data)
+
+#-------------------#
+
+## Getting useful data from grid run of neural networkss
 
 get_data_in_df <- function(
     data
@@ -46,7 +57,8 @@ get_data_in_df <- function(
     for(i in 1:n){
         model <- h2o.getModel(data@model_ids[[i]])
         model_df$mse_errors[i] <- h2o.mse(model)
-        model_df$mean_per_class_error[i] <- model@model$training_metrics@metrics$mean_per_class_error
+        #model_df$mean_per_class_error[i] <- model@model$cross_validation_metrics@metrics$mean_per_class_error
+        model_df$mean_per_class_error[i] <- h2o.performance(model, xval = T)@metrics$mean_per_class_error
         
         model_paramaters <- model@allparameters
         model_name <- model@model_id
@@ -60,7 +72,7 @@ get_data_in_df <- function(
         model_df$input_dropout_ratio[i] <- model_paramaters$input_dropout_ratio
         model_df$nesterov_accelerated_gradient[i] <- model_paramaters$nesterov_accelerated_gradient
         
-        print(model)
+        #print(model)
         train_performance <- h2o.performance(model, train_data)@metrics
         train_performance_error <- train_performance$mean_per_class_error
         train_performance_mse <- train_performance$MSE
@@ -69,7 +81,10 @@ get_data_in_df <- function(
         model_df$train_mse[i] <- train_performance_mse
         
         test_performance <- h2o.performance(model, test_data)@metrics
-        test_performance_error <- test_performance$mean_per_class_error
+        test_predictions <- h2o.predict(model, test_data)
+        test_accuracy <- test_predictions$predict == test_data$Digit
+        test_performance_error <- 1 - mean(test_accuracy)
+        #test_performance_error <- test_performance$mean_per_class_error
         test_performance_mse <- test_performance$MSE
         
         model_df$test_error[i] <- test_performance_error
@@ -81,11 +96,12 @@ get_data_in_df <- function(
 }
 
 activation <- list("Rectifier", "RectifierWithDropOut")# "Tanh")
-hidden <- list(c(100,100), c(150, 150)) #c(100, 100, 100))#, c(150, 150, 150))
-input_dropout_ratio <- list(0)
+hidden <- list(c(100,100), c(150, 150), c(100, 100, 100)) #c(100, 100, 100))#, c(150, 150, 150))
+input_dropout_ratio <- list(0, 0.2)
 nesterov_accelerated_gradient <- list( TRUE, FALSE)
-epochs <- list(10)#, 20)
-hyper_params <- list(activation = activation, hidden = hidden, input_dropout_ratio = input_dropout_ratio, nesterov_accelerated_gradient = nesterov_accelerated_gradient, epochs = epochs)
+epochs <- list(20)#, 20)
+l1 = list(1.4e-5)
+hyper_params <- list(activation = activation, hidden = hidden, input_dropout_ratio = input_dropout_ratio, nesterov_accelerated_gradient = nesterov_accelerated_gradient, epochs = epochs, l1 = l1)
 
 grid_deep_learning <- h2o.grid(algorithm = "deeplearning",
                                x = 2:785,
@@ -95,7 +111,7 @@ grid_deep_learning <- h2o.grid(algorithm = "deeplearning",
                                stopping_metric = "MSE",
                                stopping_tolerance = 0.0025,
                                hyper_params = hyper_params)
-save_results <- function(results){
+    save_results <- function(results){
     write.csv(results, file = paste0(path_to_here, "/Neural_Networks/results_NN/grid_run_evenodd2.csv"))
 }
 
@@ -104,7 +120,7 @@ save_results(df)
 
 results_df <- df
 
-results_df <- results_df[with(results_df, order(test_error)),]
+results_df <- results_df[with(results_df, order(mean_per_class_error)),]
 results_df$row_names <- 1:length(results_df[,1])
 
 melt_datas <- melt(results_df[c("test_error","mean_per_class_error", "row_names",
@@ -119,8 +135,9 @@ plot_list[[1]] <- ggplot(data=melt_datas,
          x = "Models",
          title = "Missclassification error for training model and test set",
          caption = "Top - Training model, Bottom - Test set",
-         colour = "Model id")
-ggsave(paste0(path_to_here,"/Neural_Networks/results_NN/per_class_error.png"))
+         colour = "Model id") +
+    scale_y_continuous(limits = c(0, 0.2))
+ggsave(paste0(path_to_here,"/Neural_Networks/results_NN/per_class_error3.png"))
 
                               deep_learning_predicting <- h2o.predict(object = deep_learning_results, newdata = test_data)
 deep_learning_performance <- h2o.performance(model = deep_learning_results3, newdata = test_data)
@@ -140,11 +157,15 @@ deep_learning_results2 <- h2o.deeplearning(x = 2:785,
 deep_learning_results3<- h2o.deeplearning(x = 2:785,
                                           y = 1,
                                           training_frame = train_data,
-                                          activation = "RectifierWithDropout",
+                                          #activation = "RectifierWithDropout",
+                                          activation = "Rectifier",
                                           input_dropout_ratio = 0.2,
-                                          hidden_dropout_ratios = c(0.5, 0.5, 0.5),
+                                          #hidden_dropout_ratios = c(0.2, 0.2, 0.2),
+                                          nfolds = 10,
                                           balance_classes = TRUE,
                                           hidden = c(150, 150, 150),
                                           momentum_stable = 0.99,
                                           nesterov_accelerated_gradient = TRUE,
                                           epochs = 15)
+
+h2o.performance(deep_learning_results3, test_data)
