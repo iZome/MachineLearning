@@ -16,7 +16,6 @@ load_faces <- function(
         #Files are read in alpha order, need to use mixedsort to get
         #right order
         temp <- mixedsort(temp)
-        print(temp)
         myfiles = lapply(temp, read.pnm)
         return(myfiles)
     }
@@ -117,9 +116,9 @@ convert_to_input_matrix <- function(
             }
             X[i, ] <<- picture
         }
-        A <<- X %*% t(X)
-        store <<- prcomp(A)
-        print(str(summary(store)))
+        pca <<- prcomp(X)
+        A <- X %*% t(X)
+        store <- prcomp(A)
         image_eigen <<- t(X) %*% store$rotation
     }
 
@@ -137,48 +136,20 @@ eigen_image <- function(
         return(eigen_face)
     }
 
-#compress an image
-compress_image <- function(
-    image,
-    eigen_vector,
-    R
+#recreate face from principal component analysis PCA
+recreate_face <- function(
+    image_nr,
+    n_faces
     )
     {
-        b <- rep(0, R)
-        height <- dim(image)[2]
-        width <- dim(image)[1]
-        picture <- image[1, ]
-        compress_image <- rep(0, height * width)
-        for(i in 2:width){
-            picture <- c(picture, image[i, ])
-        }
-
-        for(i in 1:R){
-            eigen_vector_element <- eigen_vector[, i]
-            b_element <- crossprod(picture, eigen_vector_element)
-            b[i] <- b_element
-            compress_image <- compress_image + (b_element * eigen_vector_element)
-        }
-        recreate <- eigen_image(compress_image, width, height)
-        return(recreate)
-    }
-
-plot_different_compressions <- function(
-    K_vector,
-    image_nr
-    )
-    {
-        pdf("compress_faces.pdf")
-            plot_face_pdf(melt(image_scale[image_nr, , ]))
-            for(K in K_vector){
-                recreate <- compress_image(image_scale[image_nr, , ], image_eigen, K)
-                plot_face_pdf(melt(recreate))
-            }
-        dev.off()
+        recreate <- tcrossprod(pca$x[, 1:n_faces], pca$rotation[, 1:n_faces])
+        recreate_matrix <- t(matrix(data = rev(recreate[image_nr, ]),
+                             nrow = 112, ncol = 92))
     }
 
 ## Main functions
 
+# plot mean, sd, original and scaled version og image_nr
 task3i <- function(
     image_nr
     )
@@ -195,6 +166,7 @@ task3i <- function(
         plot_face_png(gg_scale, name = "i/scale.png")
     }
 
+# plot the n_eigen_faces first eigenfaces
 task3ii <- function(
     n_eigen_faces,
     width,
@@ -203,20 +175,29 @@ task3ii <- function(
     {
         for(i in 1:n_eigen_faces){
             eigen <- image_eigen[, i]
-            plot_face_png(melt(eigen_image(eigen, width, height)), name = paste0("ii/eigen_face", i, ".png"))
+            plot_face_png(melt(eigen_image(eigen, width, height)),
+                          name = paste0("ii/eigen_face", i, ".png"))
         }
     }
 
+# Recreate face from different amount of eigenfaces.
 task3iii <- function(
     image_nr
     )
     {
-        eigen_n_vector <- c(1, 5, 50, 220)
+        rotate_matrix <- function(x) t(apply(x, 2, rev))
+        eigen_n_vector <- c(1, 5, 50, 200)
+        plot_face_png(melt(image_scale[image_nr, ,]),
+                      name = paste0("iii/image",
+                                    image_nr, ".png"))
         for(K in eigen_n_vector){
-            recreate <- compress_image(image_scale[image_nr, , ], image_eigen, K)
-            #print(recreate)
-            plot_face_png(melt(recreate), name = paste0("iii/image", image_nr, "eigen_faces", K, ".png"))
-            #plot_face_png(melt(image_eigen[K, ]), name = paste0("iii/image_test", K, ".png"))
+            recreate <- recreate_face(image_nr, K)
+            #rotate matrix the right way, rotating 90 degrees twice
+            recreate <- rotate_matrix(rotate_matrix(recreate))
+            plot_face_png(melt(recreate), name = paste0("iii/image",
+                                                        image_nr,
+                                                        "eigen_faces",
+                                                        K, ".png"))
         }
     }
 
@@ -232,31 +213,20 @@ main <- function()
         # image_standard_deviation
         # image_scale
         # X
-        # A
-        # store
-        # image_eigen
+        # pca
 
         n_faces = 400
         height = 112
         width = 92
         shades_of_grey = 256
         faces <- load_faces()
-        #str(head(faces))
         get_image_data(faces, n_faces, height, width)
         convert_to_input_matrix(n_faces, width, height)
-        #image_nr = sample(1:n_faces, 1)
-        #plot_different_compressions(c(2, 20, 50, 100), image_nr)
 
-        str(names(image_data))
-        #task3i(image_nr = 168)
-        #task3ii(n_eigen_faces = 10, width = width, height = height)
-        #task3iii(image_nr = 168)
+        task3i(image_nr = 168)
+        task3ii(n_eigen_faces = 10, width = width, height = height)
+        task3iii(image_nr = 115)
 
     }
 
 main()
-
-
-#warnings()
-
-## To plot or not to plot

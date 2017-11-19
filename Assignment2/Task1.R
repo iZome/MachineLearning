@@ -189,48 +189,54 @@ task1ii <- function(
             y_wthout_noise <- 0.8 * x
             y_wth_noise <- quote(0.8 * x + rnorm(1,0,1))
             y_dataset <- make_data_set(y_wth_noise, x)
+
+            x_test <- runif(n = N, min = -1, max = 1)
+            y_test <- 0.8 * x_test + rnorm(1,0,1)
             for(i in 5:(N-5)){
+                index = i - 4
                 train_indexes <- sample(indexes, N - i)
                 test_indexes <- subset(indexes, !(indexes %in% train_indexes))
 
                 x_train <- x[train_indexes]
-                x_test <- x[test_indexes]
+                x_val <- x[test_indexes]
 
                 y_train <- y_dataset[train_indexes]
-                y_test <- y_dataset[test_indexes]
+                y_val <- y_dataset[test_indexes]
+
 
                 b_g_1 <- fit_function(0.5, x_train, y_train, N - i)
                 b_g_2 <- fit_function(-0.5, x_train, y_train, N - i)
 
-                g_1 <- quote(0.5 + b_g_1 * x_test) # TO DO: prøve å utføre fit_function og få ut verde før settes i quote
-                g_2 <- quote(-0.5 + b_g_2 * x_test)
-
-                g_1_out <- quote(0.5 + b_g_1 * x)
-                g_2_out <- quote(-0.5 + b_g_2 * x)
+                g_1 <- quote(0.5 + b_g_1 * x_val) # TO DO: prøve å utføre fit_function og få ut verde før settes i quote
+                g_2 <- quote(-0.5 + b_g_2 * x_val)
 
                 g_1_val <- eval(g_1)
                 g_2_val <- eval(g_2)
 
-                g_1_out <- eval(g_1_out)
-                g_2_out <- eval(g_2_out)
+                g_1_mse_val <- round(mean((y_val - g_1_val)^2),5)
+                g_2_mse_val <- round(mean((y_val - g_2_val)^2),5)
 
-                g_1_mse <- round(mean((y_test - g_1_val)^2),5)
-                g_2_mse <- round(mean((y_test - g_2_val)^2),5)
+                if(g_1_mse_val < g_2_mse_val){
+                    g_out <- quote(0.5 + b_g_1 * x_test)
+                }else{
+                    g_out <- quote(-0.5 + b_g_2 * x_test)
+                }
 
-                g_1_bias <- round(mean((y_dataset - g_1_out)^2),5)
-                g_2_bias <- round(mean((y_dataset - g_2_out)^2),5)
+                g_out <- eval(g_out)
 
-                #g_1_bias <- integrate(function(x) (0.5 + (b_g_1 - b_y) * x)^2, -1, 1)$value + 1
-                #g_2_bias <- integrate(function(x) (-0.5 + (b_g_2 - b_y) * x)^2, -1, 1)$value +1
+                g_mse_out <- round(mean((y_test - g_out)^2),5)
 
-                error_df$g_1_error_val[i-4] <- (error_df$g_1_error_val[i-4]  + g_1_mse)
-                error_df$g_2_error_val[i-4] <- (error_df$g_2_error_val[i-4]  + g_2_mse)
+                #g_1_mse_out <- integrate(function(x) (0.5 + (b_g_1 - b_y) * x)^2, -1, 1)$value + 1
+                #g_2_mse_out <- integrate(function(x) (-0.5 + (b_g_2 - b_y) * x)^2, -1, 1)$value +1
 
-                error_df$g_1_error_out[i-4] <- (error_df$g_1_error_out[i-4]  + g_1_bias)
-                error_df$g_2_error_out[i-4] <- (error_df$g_2_error_out[i-4]  + g_2_bias)
+                error_df$g_1_error_val[index] <- (error_df$g_1_error_val[index]  + g_1_mse_val)
+                error_df$g_2_error_val[index] <- (error_df$g_2_error_val[index]  + g_2_mse_val)
 
-                error_df$collection_val[i-4] <- (error_df$collection_val[i-4] + min(g_1_mse, g_2_mse))
-                error_df$collection_out[i-4] <- (error_df$collection_out[i-4] + min(g_2_bias, g_2_bias))
+                error_df$g_1_error_out[index] <- (error_df$g_1_error_out[index]  + g_mse_out)
+                error_df$g_2_error_out[index] <- (error_df$g_2_error_out[index]  + g_mse_out)
+
+                error_df$collection_val[index] <- (error_df$collection_val[index] + min(g_1_mse_val, g_2_mse_val))
+                error_df$collection_out[index] <- (error_df$collection_out[index] + g_mse_out)
             }
         }
         close(pb)
@@ -244,7 +250,7 @@ task1ii <- function(
                    geom_line(aes(y = g_2_error_val, colour = "g_2")) +
                    geom_line(aes(y = g_1_error_out, colour = "g_1_2")) +
                    geom_line(aes(y = g_2_error_out, colour = "g_2_2"))
-        ggsave("Pictures/Task2/task2ii1_revamp.png")
+        ggsave("Pictures/Task2/task2ii1_revamp2outer.png")
 
         # Best error chosen at each i
         #tikz(file = paste0("Pictures/Task1/task1ii.tex"), width = 5, height = 5)
@@ -257,7 +263,7 @@ task1ii <- function(
                                      breaks = c("$E_{val}$", "$E_{out}$"),
                                      values = c("blue", "red")) +
                    theme(legend.position = c(0.9, 0.2))
-        ggsave("Pictures/Task2/task2ii2_revamp.png")
+        ggsave("Pictures/Task2/task2ii2_revamp2outer.png")
         #print(ggplot2)
         #dev.off()
     }

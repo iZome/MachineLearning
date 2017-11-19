@@ -28,8 +28,10 @@ train_data <- train_data[, variables]
 test_data <- test_data[, variables]
 
 train_data_odd_even <- train_data
-train_data_odd_even[,1] <- as.factor(train_data_odd_even[,1] %% 2)
-train_data[,1] <- as.factor(train_data[,1])
+train_data_odd_even[,1] <- as.factor(as.integer(train_data_odd_even[,1]) %% 2)
+test_data_odd_even <- test_data
+test_data_odd_even[,1] <- as.factor(as.integer(test_data_odd_even[,1]) %% 2)
+#train_data[,1] <- as.factor(train_data[,1])
 
 unclassified_data[,1] <- as.factor(unclassified_data[,1])
 
@@ -41,7 +43,8 @@ sum(near_zero_variables$nzv)
 
 regression <- function(
     minimum_development,
-    data
+    data,
+    test_data
     ){
         minimum_development <- 0.005
         tree_model <- tree(Digit ~ ., data = data, mindev = minimum_development)
@@ -58,8 +61,17 @@ regression <- function(
         
         tree_prune <- prune.tree(tree_model, best = 20)
         summary(tree_prune)
+        plot(tree_prune)
+        
+        predicted <- predict(tree_prune, test_data, type = "class")
+        str(predicted)
+        confusion_matrix <- confusionMatrix(predicted, test_data[,1])
+        print(confusion_matrix)
+        err <- as.numeric(predicted) - as.numeric(test_data[,1])
+        print((sum(abs(err))))
     }
 
+regression(0.05, train_data_odd_even, test_data_odd_even)
 #-------------------#
 
 ## RANDOM FORREST -randomForest
