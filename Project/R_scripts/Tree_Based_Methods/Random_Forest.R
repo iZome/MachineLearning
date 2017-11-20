@@ -12,12 +12,12 @@ options(tikzMetricPackages = c("\\usepackage[utf8]{inputenc}
 
 
 ## Data
-
+path_data <- paste0(getwd(), "/data")
 path_to_here <- paste0(getwd(), "/Tree_Based_Methods")   # getwd give path to project
                                                         # which is one folder over
 
-train_data <- read.csv(paste0(path_to_here, "/data/Train_Digits_20171108.csv"), header = TRUE)
-unclassified_data <- read.csv(paste0(path_to_here, "/data/Test_Digits_20171108.csv"), header = TRUE)
+train_data <- read.csv(paste0(path_data, "/Train_Digits_20171108.csv"), header = TRUE)
+unclassified_data <- read.csv(paste0(path_data, "/Test_Digits_20171108.csv"), header = TRUE)
 
 train_data[,1] <- as.factor(train_data[, 1])
 
@@ -53,7 +53,12 @@ plot_error_development <- function(
     ){
         error_data <- data.frame(n_trees = 1:nrow(random_forest_data$err.rate), 
                                  error <- random_forest_data$err.rate[,"OOB"])
-        print(error_data)
+        
+        write.csv(error_data, file = paste0(destination_path, 
+                                            "_Error_plot_", 
+                                            nrow(error_data), 
+                                            "trees.csv"))
+        
         tikz(file = paste0(destination_path, ".tex"), width = 6, height = 4)
         ggplot1 <- ggplot(data = error_data, aes(x = n_trees)) +
             geom_line(aes(y = error, colour = "$Random forest$")) +
@@ -71,16 +76,11 @@ plot_error_development <- function(
         print(ggplot1)
         dev.off()
     }
-random_forest <- train_random_forest(train_data, 500)
-str(random_forest)
-plot_error_development(random_forest, paste0(path_to_here, "/Tree_Based_Methods/Results_TBM/random_forest"))
-
-prediction <- predict(random_forest, newdata = test_data)
-prediction
 
 create_confusion_matrix <- function(
     predicted_value,
-    true_value
+    true_value,
+    destination_path
 ){
     conf <- confusionMatrix(predicted_value, true_value)
     conf_df <- as.data.frame.matrix(conf$table) # extract confusion matrix
@@ -117,10 +117,22 @@ create_confusion_matrix <- function(
                      Rate = classification_frac)
     names(conf_df) <- c("", names(conf_df)[-1]) # remove name of predicted classes
     
-    write.csv(x = conf_df, file = paste0(path_to_here, "/Results_TBM/Random_Forest_Confusion_Matrix.csv"))
+    write.csv(x = conf_df, file = paste0(destination_path, "_Confusion_Matrix.csv"))
     print(xtable(conf_df, display = c("s", rep("d", 11), "f", "s"),
                  digits = c(rep(0, 12), 3, 0)),
-          file = paste0(path_to_here, "/Results_TBM/Random_Forest_Confusion_Matrix.tex"),
+          file = paste0(destination_path ,"_Confusion_Matrix.tex"),
           include.rownames = FALSE)
                           
-    }
+}
+
+n_trees = 1000
+random_forest <- train_random_forest(train_data, n_trees)
+str(random_forest)
+plot_error_development(random_forest, paste0(path_to_here, "/Results_TBM/Random_Forest_",
+                                             n_trees, "trees"))
+
+prediction <- predict(random_forest, newdata = test_data)
+prediction
+create_confusion_matrix(predicted_value = prediction, true_value = test_data$Digit, 
+                        paste0(path_to_here, "/Results_TBM/Random_Forest_", 
+                                                            n_trees, "trees"))
