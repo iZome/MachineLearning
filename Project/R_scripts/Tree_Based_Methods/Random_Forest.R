@@ -6,10 +6,10 @@ library(tikzDevice)     # library to export plots to .tex files
 library(xtable)         # library to export data frames to tables in .tex files
 set.seed(420)           # seed to replicate results and get consistent test and training set
 
-options(tikzMetricPackages = c("\\usepackage[utf8]{inputenc}", "\\usepackage[T1]{fontenc}", 
+options(tikzMetricPackages = c("\\usepackage[utf8]{inputenc}
+#-------------------#", "\\usepackage[T1]{fontenc}", 
                                "\\usetikzlibrary{calc}", "\\usepackage{amssymb}"))
 
-#-------------------#
 
 ## Data
 

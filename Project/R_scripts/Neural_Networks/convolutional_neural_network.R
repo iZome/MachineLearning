@@ -26,18 +26,19 @@ train_data <- train_data[split_train_test, ]
 train <- data.matrix(train_data)
 test <- data.matrix(test_data)
 
-train_x <- train[, -1]
+train_x <- t(train[, -1])
 train_y <- train[, 1]
 
-train_x <- t(train_x)#/255)
+train_array <- train_x
+dim(train_array) <- c(28, 28, 1, ncol(train_x))
+
+#train_x <- t(train_x)#/255)
 
 test_x <- test[, -1]
 test_y <- test[, 1]
 
 test_x <- t(test_x)#/255)
 
-train_array <- train_x
-dim(train_array) <- c(28, 28, 1, ncol(train_x))
 
 # transpose and normalize to more   
 

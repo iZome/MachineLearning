@@ -13,6 +13,7 @@ trans <- rotate(rotate(input[2:ncol(input)]))
 t <- cbind(input$Digit, trans)
 
 
+
 #Split to training and test set
 sample <- sample(nrow(input)*0.8)
 train <- input[sample,]
@@ -94,3 +95,4 @@ makeConfusionMatrix <- function(pred, true){
     confM[nrow(confM), "Error"] <- 1 - mod$overall["Accuracy"]
     return(confM)
 }
+        
