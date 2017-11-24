@@ -1,2 +1,2 @@
 source bash_scripts/params.sh
-ssh -X karstst@$ip
+ssh -X karstst@$ip$1

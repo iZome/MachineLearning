@@ -1,2 +1,2 @@
 source bash_scripts/params.sh
-scp $1 karstst@$ip:$path
+scp -r $1 karstst@$ip_constant:$path$2
