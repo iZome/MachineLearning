@@ -201,3 +201,5 @@ test_data_confusion_matrix <- as.data.frame(test_data)
 create_confusion_matrix(predicted_confusion_matrix, 
                         test_data_confusion_matrix[, "Digit"], 
                         paste0(path_to_here, "/results_NN/540_320_neural_net"))
+
+h2o.shutdown()
