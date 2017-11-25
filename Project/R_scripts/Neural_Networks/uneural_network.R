@@ -1,4 +1,5 @@
 ## Libraries and seed
+rm(list = ls())
 library(h2o)
 library(caret)
 library(reshape2)
@@ -14,7 +15,7 @@ path_to_here <- getwd()
 train_data <- read.csv(paste0(path_to_here, "/data/Train_Digits_20171108.csv"))
 unclassified_data <- read.csv(paste0(path_to_here, "/data/Test_Digits_20171108.csv"))
 
-local.h2o <- h2o.init(ip = "localhost", port = 54321, startH2O = TRUE, nthreads = -1)
+local.h2o <- h2o.init(ip = "localhost", port = 54321, startH2O = TRUE,max_mem_size = "7G", nthreads = -1)
 
 train_data[,1] <- as.factor(train_data[, 1])
 split_train_test <- createDataPartition(train_data$Digit, p = 0.8, list = FALSE)
@@ -96,11 +97,11 @@ get_data_in_df <- function(
 }
 
 activation <- list("Rectifier", "RectifierWithDropOut")# "Tanh")
-hidden <- list(c(100,100), c(150, 150), c(100, 100, 100)) #c(100, 100, 100))#, c(150, 150, 150))
+hidden <- list(c(100,100), c(150, 150),  c(540, 320), c(100, 100, 100), c(540, 320, 100))
 input_dropout_ratio <- list(0, 0.2)
-nesterov_accelerated_gradient <- list( TRUE, FALSE)
-epochs <- list(20)#, 20)
-l1 = list(1.4e-5)
+nesterov_accelerated_gradient <- list( TRUE)
+epochs <- list(20)
+l1 = list(0,1.4e-5)
 hyper_params <- list(activation = activation, hidden = hidden, input_dropout_ratio = input_dropout_ratio, nesterov_accelerated_gradient = nesterov_accelerated_gradient, epochs = epochs, l1 = l1)
 
 grid_deep_learning <- h2o.grid(algorithm = "deeplearning",
@@ -112,60 +113,69 @@ grid_deep_learning <- h2o.grid(algorithm = "deeplearning",
                                stopping_tolerance = 0.0025,
                                hyper_params = hyper_params)
     save_results <- function(results){
-    write.csv(results, file = paste0(path_to_here, "/Neural_Networks/results_NN/grid_run_evenodd2.csv"))
+    write.csv(results, file = paste0(path_to_here, "/Neural_Networks/results_NN/grid_run_20.csv"))
 }
 
 df <- get_data_in_df(grid_deep_learning)
 save_results(df)
 
-results_df <- df
+#results_df <- df
+
+results_df <- read.csv(paste0(path_to_here, "/Neural_Networks/results_NN/grid_run_40.csv"))
 
 results_df <- results_df[with(results_df, order(mean_per_class_error)),]
 results_df$row_names <- 1:length(results_df[,1])
 
 melt_datas <- melt(results_df[c("test_error","mean_per_class_error", "row_names",
                                 "model_numbers")], id = c("row_names", "model_numbers"))
-
+plot_list  <- list()
 # Plot classification error
 plot_list[[1]] <- ggplot(data=melt_datas,
                          aes(x=row_names, y=value)) +
     geom_point(aes(colour = as.factor(model_numbers), group = as.factor(model_numbers)), size = 3) +
     geom_line(aes(group = variable)) +
-    labs(y = "Missclassification error in range 0 to 1",
-         x = "Models",
-         title = "Missclassification error for training model and test set",
-         caption = "Top - Training model, Bottom - Test set",
-         colour = "Model id") +
-    scale_y_continuous(limits = c(0, 0.2))
+    xlab("Model id") +
+    ylab("Miss. class. Error") +
+    scale_y_continuous(limits = c(0, 0.2)) +
+    theme_bw() +
+    theme(legend.position = c(0.65, 0.155),
+          legend.background = element_rect(fill=alpha('white', 0)),
+          legend.direction = "horizontal",
+          axis.text.x=element_blank(),
+          axis.ticks.x=element_blank()) +
+    guides(fill = guide_legend(title = "Legend"))
+
+ggplot_to
 ggsave(paste0(path_to_here,"/Neural_Networks/results_NN/per_class_error3.png"))
 
-                              deep_learning_predicting <- h2o.predict(object = deep_learning_results, newdata = test_data)
-deep_learning_performance <- h2o.performance(model = deep_learning_results3, newdata = test_data)
-deep_learning_performance
-deep_learning_predicting_data_frame <- as.data.frame((deep_learning_predicting))
+#                              deep_learning_predicting <- h2o.predict(object = deep_learning_results, newdata = test_data)
+#deep_learning_performance <- h2o.performance(model = deep_learning_results3, newdata = test_data)
+#deep_learning_performance
+#deep_learning_predicting_data_frame <- as.data.frame((deep_learning_predicting))
 
 
-deep_learning_results2 <- h2o.deeplearning(x = 2:785,
-                                           y = 1,
-                                           training_frame = train_data,
-                                           activation = "Tanh",
-                                           hidden = c(160, 160, 160, 160, 160),
-                                           nfolds = 10,
-                                           keep_cross_validation_predictions = TRUE,
-                                           epochs = 40)
+#deep_learning_results2 <- h2o.deeplearning(x = 2:785,
+#                                           y = 1,
+#                                          training_frame = train_data,
+#                                           activation = "Tanh",
+#                                           hidden = c(160, 160, 160, 160, 160),
+#                                           nfolds = 10,
+#                                           keep_cross_validation_predictions = TRUE,
+#                                           epochs = 40)
 
-deep_learning_results3<- h2o.deeplearning(x = 2:785,
-                                          y = 1,
-                                          training_frame = train_data,
-                                          #activation = "RectifierWithDropout",
-                                          activation = "Rectifier",
-                                          input_dropout_ratio = 0.2,
-                                          #hidden_dropout_ratios = c(0.2, 0.2, 0.2),
-                                          nfolds = 10,
-                                          balance_classes = TRUE,
-                                          hidden = c(150, 150, 150),
-                                          momentum_stable = 0.99,
-                                          nesterov_accelerated_gradient = TRUE,
-                                          epochs = 15)
+#deep_learning_results3<- h2o.deeplearning(x = 2:785,
+#                                          y = 1,
+#                                          training_frame = train_data,
+#                                          #activation = "RectifierWithDropout",
+#                                          activation = "Rectifier",
+#                                          input_dropout_ratio = 0.2,
+#                                          #hidden_dropout_ratios = c(0.2, 0.2, 0.2),
+#                                          nfolds = 10,
+#                                          balance_classes = TRUE,
+#                                          hidden = c(150, 150, 150),
+#                                          momentum_stable = 0.99,
+#                                          nesterov_accelerated_gradient = TRUE,
+#                                          epochs = 15)
 
 h2o.performance(deep_learning_results3, test_data)
+
