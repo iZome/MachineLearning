@@ -6,14 +6,20 @@ library(reshape2)
 
 set.seed(420)
 
+# Load help script with functions to export the results to latex
+# These functions gathered to avoid duplicate code
+if(!exists("create_confusion_matrix", mode = "function")){
+    source("Help_Scripts/to_latex_functions.R")
+}
 #-------------------#
 
 ## Data
 
-path_to_here <- getwd()
+path_data <- getwd()
+path_to_here <- paste0(getwd(), "/Neural_Networks")
 
-train_data <- read.csv(paste0(path_to_here, "/data/Train_Digits_20171108.csv"))
-unclassified_data <- read.csv(paste0(path_to_here, "/data/Test_Digits_20171108.csv"))
+train_data <- read.csv(paste0(path_data, "/data/Train_Digits_20171108.csv"))
+unclassified_data <- read.csv(paste0(path_data, "/data/Test_Digits_20171108.csv"))
 
 local.h2o <- h2o.init(ip = "localhost", port = 54321, startH2O = TRUE,max_mem_size = "7G", nthreads = -1)
 
@@ -132,21 +138,26 @@ plot_list  <- list()
 # Plot classification error
 plot_list[[1]] <- ggplot(data=melt_datas,
                          aes(x=row_names, y=value)) +
-    geom_point(aes(colour = as.factor(model_numbers), group = as.factor(model_numbers)), size = 3) +
+    geom_point(aes(colour = as.factor(model_numbers), group = as.factor(model_numbers)), size = 1.25) +
     geom_line(aes(group = variable)) +
     xlab("Model id") +
     ylab("Miss. class. Error") +
     scale_y_continuous(limits = c(0, 0.2)) +
     theme_bw() +
-    theme(legend.position = c(0.65, 0.155),
+    theme(legend.position = c(0.675, 0.255),
           legend.background = element_rect(fill=alpha('white', 0)),
           legend.direction = "horizontal",
+          legend.text = element_text(size=6),
+          legend.key = element_rect(size = 3),
+          legend.key.size = unit(1.0, 'lines'),
           axis.text.x=element_blank(),
           axis.ticks.x=element_blank()) +
+    scale_colour_discrete(name = "Model ids") +
     guides(fill = guide_legend(title = "Legend"))
 
-ggplot_to
-ggsave(paste0(path_to_here,"/Neural_Networks/results_NN/per_class_error3.png"))
+ggplot_to_latex(plot_list[[1]], 
+                paste0(path_to_here, "/results_NN/per_class_error"), width = 6, height = 4)
+ggsave(paste0(path_to_here,"/results_NN/per_class_error3.png"))
 
 #                              deep_learning_predicting <- h2o.predict(object = deep_learning_results, newdata = test_data)
 #deep_learning_performance <- h2o.performance(model = deep_learning_results3, newdata = test_data)
@@ -163,19 +174,30 @@ ggsave(paste0(path_to_here,"/Neural_Networks/results_NN/per_class_error3.png"))
 #                                           keep_cross_validation_predictions = TRUE,
 #                                           epochs = 40)
 
-#deep_learning_results3<- h2o.deeplearning(x = 2:785,
-#                                          y = 1,
-#                                          training_frame = train_data,
-#                                          #activation = "RectifierWithDropout",
-#                                          activation = "Rectifier",
-#                                          input_dropout_ratio = 0.2,
-#                                          #hidden_dropout_ratios = c(0.2, 0.2, 0.2),
-#                                          nfolds = 10,
-#                                          balance_classes = TRUE,
-#                                          hidden = c(150, 150, 150),
-#                                          momentum_stable = 0.99,
-#                                          nesterov_accelerated_gradient = TRUE,
-#                                          epochs = 15)
+deep_learning_results3<- h2o.deeplearning(x = 2:785,
+                                         y = 1,
+                                         training_frame = train_data,
+                                         #activation = "RectifierWithDropout",
+                                         activation = "Rectifier",
+                                         input_dropout_ratio = 0.2,
+                                         #hidden_dropout_ratios = c(0.2, 0.2, 0.2),
+                                         nfolds = 10,
+                                         balance_classes = TRUE,
+                                         hidden = c(540, 320),
+                                         l1 = 1.4e-5,
+                                         #momentum_stable = 0.99,
+                                         stopping_metric = "MSE",
+                                         stopping_tolerance = 0.0025,
+                                         nesterov_accelerated_gradient = TRUE,
+                                         epochs = 20)
 
 h2o.performance(deep_learning_results3, test_data)
 
+
+predicted <- predict(deep_learning_results3, test_data, type = "response")
+
+predicted_confusion_matrix <- as.factor(as.vector(predicted$predict))
+test_data_confusion_matrix <- as.data.frame(test_data)
+create_confusion_matrix(predicted_confusion_matrix, 
+                        test_data_confusion_matrix[, "Digit"], 
+                        paste0(path_to_here, "/results_NN/540_320_neural_net"))
