@@ -65,3 +65,16 @@ create_confusion_matrix <- function(
           include.rownames = FALSE)
 
 }
+
+create_cv_indexes <- function(N, n_folds){
+    indexes_per_fold <- floor(N/n_folds)
+    index_matrix <- matrix(0L, nrow = n_folds, ncol = indexes_per_fold)
+    index_available <- 1:N
+    for(i in 1:n_folds){
+        selected_indexes <- sample(index_available, indexes_per_fold)
+        index_available <- index_available[! index_available %in% selected_indexes]
+        
+        index_matrix[i, ] <- selected_indexes
+    }
+    return(index_matrix)
+}

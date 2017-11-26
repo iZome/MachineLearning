@@ -19,6 +19,8 @@ sample <- sample(nrow(input)*0.8)
 train <- input[sample,]
 test <- input[-sample,]
 
+#Split training set into training and validation set
+
 # Set up train and test datasets
 train <- data.matrix(train)
 train_x <- t(train[, -1])
@@ -62,7 +64,7 @@ model <- mx.model.FeedForward.create(NN_model,
                                      X = train_array,
                                      y = train_y,
                                      ctx = devices,
-                                     num.round = 5,
+                                     num.round = 40,
                                      array.batch.size = 50,
                                      learning.rate = 0.01,
                                      momentum = 0.9,
