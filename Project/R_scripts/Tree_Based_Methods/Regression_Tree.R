@@ -2,9 +2,7 @@
 rm(list = ls())
 library(caret)
 library(readr)
-library(tree)
-library(randomForest)
-library(gbm)
+library(tree)           # package used for regression tree
 library(tikzDevice)     # library to export plots to .tex files
 
 options(tikzMetricPackages = c("\\usepackage[utf8]{inputenc}", "\\usepackage[T1]{fontenc}",
@@ -36,17 +34,15 @@ train_data <- train_data[split_train_test, ]
 near_zero_variables <- nearZeroVar(train_data[,-1], saveMetrics = T, freqCut = 10000/1,uniqueCut = 1/7)
 cut_variables <- rownames(near_zero_variables[near_zero_variables$nzv == TRUE,])
 variables <- setdiff(names(train_data), cut_variables)
+
 train_data <- train_data[, variables]
 test_data <- test_data[, variables]
 
+# make the label Digit factor
 train_data[, 1] <- as.factor(train_data[, 1])
 test_data[, 1] <- as.factor(test_data[, 1])
 
-#train_data[,1] <- as.factor(train_data[,1])
-
 unclassified_data[,1] <- as.factor(unclassified_data[,1])
-
-sum(near_zero_variables$nzv)
 
 #-------------------#
 
@@ -59,9 +55,10 @@ regression <- function(
     ){
     # Chanage name of pixel columns to work with tikz library
     
-    print(getClass(class(train_data)))
     colnames(train_data)[ 2:length(train_data[1,])] <- c(paste0("Pixel", 1:(length(train_data[1,]) - 1)))
     colnames(test_data)[ 2:length(train_data[1, ])] <- c(paste0("Pixel", 1:(length(train_data[1,]) - 1)))
+    
+    # Set minimum development required for making a new split
     minimum_development <- 0.005    
     tree_model <- tree(Digit ~ ., data = train_data, mindev = minimum_development)
     plot(tree_model)

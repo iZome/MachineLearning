@@ -237,11 +237,12 @@ predict_on_test_set <- function(
                             paste0(path_to_here, "/results_NN/convolutional_neural_network_40_rounds"))
 }
 
+# Give predictions on unclassified data
 predict_on_unclassified_data <- function(
     neural_net_model,
     train_array_full,
     train_y_full,
-    test_array_full
+    unclassified_array
 ){
     predicted <- run_convolutional_neural_network(neural_net_model,
                                                   train_array_full,
@@ -249,17 +250,26 @@ predict_on_unclassified_data <- function(
                                                   unclassified_array)
     predicted <- predicted[[2]]
     
+    predicted_digit <- predicted
+    predicted_odd_even <- as.factor(as.integer(predicted) %% 2)
+    prediction_csv <- data.frame(number = 1:length(predicted_digit),
+                                digits = predicted_digit,
+                                odd_even = predicted_odd_even)
+    write.csv(prediction_csv, file = paste0(path_data, "/data/predictions_STNKAR012.csv"))
+    
 }
 
 main <- function()
     {
     # Validation used under tuning, set to false so it does run after tuning
-    validation <- FALSE
+    validation_boolean <- FALSE
+    # Test used under testing of the final tuned model to compare with other methods
+    train_boolean <- FALSE
     
     fully_2 <- two_layer_concolutional_network()
     neural_net_model <- mx.symbol.SoftmaxOutput(data = fully_2)
     
-    if(validation == TRUE){
+    if(validation_boolean){
         plot_error_development(neural_net_model,
                                train_array_val,
                                train_y_val,
@@ -267,13 +277,20 @@ main <- function()
                                test_y)
     }
     
-    predict_on_test_set(neural_net_model,
-                        train_array,
-                        train_y,
-                        test_array,
-                        test_y)
+    if(train_boolean){
+        predict_on_test_set(neural_net_model,
+                            train_array,
+                            train_y,
+                            test_array,
+                            test_y)
+    }
+    
+    predict_on_unclassified_data(neural_net_model,
+                                 train_array_full,
+                                 train_y_full,
+                                 unclassified_array)
     
 }
-
+main()
 
 

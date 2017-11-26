@@ -28,7 +28,16 @@ train_data[,1] <- as.factor(train_data[, 1])
 
 split_train_test <- createDataPartition(train_data$Digit, p = 0.8, list = FALSE)
 test_data <- train_data[-split_train_test, ]
-train_data <- train_data[split_train_test, ] 
+train_data <- train_data[split_train_test, ]
+
+# Remove variable with low variance which are near zero. Doing it after 
+# splitting in train/test set to avoid contaminating the data.
+near_zero_variables <- nearZeroVar(train_data[,-1], saveMetrics = T, freqCut = 10000/1,uniqueCut = 1/7)
+cut_variables <- rownames(near_zero_variables[near_zero_variables$nzv == TRUE,])
+variables <- setdiff(names(train_data), cut_variables)
+
+train_data <- train_data[, variables]
+test_data <- test_data[, variables]
 
 #-------------------#
 
@@ -37,33 +46,17 @@ train_data <- train_data[split_train_test, ]
 boosting <- function(
     data,
     n_trees,
-    minimum_development = 0.01,
     interaction_depth = 2,
     shrinkage = 0.001
 ){
-    # boosting <- gbm(Digit ~ .,
-    #                 data = data,
-    #                 distribution = "multinomial",
-    #                 n.trees = n_trees,
-    #                 interaction.depth = interaction_depth,
-    #                 shrinkage = shrinkage,
-    #                 
-    #                 bag.fraction = 1,
-    #                 cv.folds = 10,
-    #                 n.cores = 4)
-    
-    
-    tune_control <- trainControl(method = "cv",
-                                 number = 5,
-                                 repeats = 1)
-    training_grid <- expand.grid(n.trees = c(n_trees), 
-                                 interaction.depth = c(interaction_depth),
-                                 shrinkage = c(shrinkage),
-                                 n.minobsinnode = c(10))
-    print(training_grid)
-    boosting <- train(Digit ~ ., data = data, method = "gbm",
-                      trControl = tune_control,
-                      tuneGrid = training_grid)
+    boosting <- gbm(Digit ~ .,
+                    data = data,
+                    distribution = "multinomial",
+                    n.trees = n_trees,
+                    interaction.depth = interaction_depth,
+                    shrinkage = shrinkage,
+                    cv.folds = 10,
+                    n.cores = 4)
     return(boosting)
 }
 
@@ -72,6 +65,7 @@ boosting <- function(
 
 plot_error_development <- function(
     boosting_data,
+    best_n_trees,
     destination_path
 ){
     error_data <- data.frame(n_trees = 1:length(boosting_data$cv.error), 
@@ -98,17 +92,32 @@ plot_error_development <- function(
     ggplot_to_latex(ggplot1, destination_path, width = 6, height = 4)
 }
 
+predict_data <- function(
+    boosting_trian,
+    best_n_trees,
+    test_data
+){
+    predicted <- predict(boosting_train, newdata = test_data, n.trees = best_n_trees, type = "response")
+    
+    predicted <- apply(predicted, 1, function(x) which.max(x) - 1)
+    return(predicted)
+}
+
 main <- function(){
     n_trees = 10
-    boosting_train <- boosting(train_data,n_trees)
-    plot_error_development(boosting_train, paste0(path_to_here, 
+    boosting_train <- boosting(train_data,n_trees, shrinkage = 0.01)
+    best_n_trees <- gbm.perf(boosting_train, method = "cv", plot.it = FALSE)
+    
+    plot_error_development(boosting_train, best_n_trees, paste0(path_to_here, 
                                                   "/Results_TBM/Boosting_",
                                                   n_trees,
                                                   "trees_Error_plot"))
-    #predicted <- predict(boosting_train, test_data)
-    #create_confusion_matrix(predicted, test_data$Digit, paste0(path_to_here, 
-    #                                                           "/Results_TBM/Boosting_",
-    #                                                           n_trees))
+    
+    predicted <- predict_data(boosting_trian, test_data)
+    
+    create_confusion_matrix(predicted, test_data$Digit, paste0(path_to_here,
+                                                              "/Results_TBM/Boosting_",
+                                                              n_trees))
 }
 
 main()
