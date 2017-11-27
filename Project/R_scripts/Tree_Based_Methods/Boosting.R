@@ -1,9 +1,7 @@
 ## Libraries and seed
 rm(list = ls())
 library(caret)          # useful library to split up data set
-library(tikzDevice)     # library to export plots to .tex files
 library(gbm)            # library with powerful boosting method
-library(xtable)         # library to export data frames to tables in .tex files
 set.seed(420)           # seed to replicate results and get consistent test and training set
 
 # Load help script with functions to export the results to latex
@@ -76,6 +74,7 @@ plot_error_development <- function(
         geom_line(aes(y = error, colour = "$Boosting$")) +
         xlab("$n_{trees}$") +
         ylab("Miss.class. Error") +
+        geom_vline(xintercept = best_n_trees, color = "black", linetype = "dotdash") +
         scale_colour_manual("Legend",
                             breaks = c("$Boosting$"),
                             values = c("black"),
@@ -93,7 +92,7 @@ plot_error_development <- function(
 }
 
 predict_data <- function(
-    boosting_trian,
+    boosting_train,
     best_n_trees,
     test_data
 ){
@@ -104,17 +103,22 @@ predict_data <- function(
 }
 
 main <- function(){
-    n_trees = 10
+    n_trees = 10000
     boosting_train <- boosting(train_data,n_trees, shrinkage = 0.01)
+    
+    # Get amount of trees with best performance based on 10 fold cv
     best_n_trees <- gbm.perf(boosting_train, method = "cv", plot.it = FALSE)
     
+    # Plot error 
     plot_error_development(boosting_train, best_n_trees, paste0(path_to_here, 
                                                   "/Results_TBM/Boosting_",
                                                   n_trees,
                                                   "trees_Error_plot"))
     
-    predicted <- predict_data(boosting_trian, test_data)
+    # Perdict test set labels
+    predicted <- predict_data(boosting_train, best_n_trees, test_data)
     
+    # Create confusion matrix for the result
     create_confusion_matrix(predicted, test_data$Digit, paste0(path_to_here,
                                                               "/Results_TBM/Boosting_",
                                                               n_trees))
