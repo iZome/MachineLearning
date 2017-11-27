@@ -109,13 +109,3 @@ regression <- function(
 
 regression(0.05, train_data, test_data)
 #-------------------#
-
-## RANDOM FORREST -randomForest
-
-
-
-#-------------------#
-
-## BOOSTING - gbm
-
-#-------------------#

@@ -1,6 +1,6 @@
 ## Libraries and seed
 rm(list = ls())
-library(mxnet)
+library(mxnet)      #library for running convolutional neural network
 library(caret)
 
 set.seed(420)
