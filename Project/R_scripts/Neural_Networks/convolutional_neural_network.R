@@ -95,11 +95,11 @@ two_layer_concolutional_network <- function(){
     
     flatten <- mx.symbol.Flatten(data = pooling_2)
     fully_1 <- mx.symbol.FullyConnected(data = flatten, num_hidden = 500)
-    activation_3 <- mx.symbol.Activation(data = fully_1, act_type = "relu")
+    activation_3 <- mx.symbol.Activation(data = fully_1, act_type = "tanh")
     
     # Setting up second fully connected layer
     
-    fully_2 <- mx.symbol.FullyConnected(data = activation_3, num_hidden = 40)
+    fully_2 <- mx.symbol.FullyConnected(data = activation_3, num_hidden = 10)
     
     return(fully_2)
     
@@ -144,18 +144,22 @@ run_convolutional_neural_network <- function(
     neural_net_model,
     train_array,
     train_y,
-    test_array
+    test_array,
+    validation_array = NULL,
+    validation_y = NULL
 ){
     mx.set.seed(100)
     
     cpu_used <- mx.cpu()
     
+    train_y <- as.factor(as.integer(train_y) %% 2)
+    validation_y <- as.factor(as.integer(validation_y) %% 2)
     
     logger_mx <- mx.metric.logger$new()
     train_model <- mx.model.FeedForward.create(neural_net_model,
                                                X = train_array,
                                                y = train_y,
-                                               #eval.data = list(data = validation_array, label = validation_y), #must be set when validating
+                                               eval.data = list(data = validation_array, label = validation_y), #must be set when validating
                                                ctx = cpu_used,
                                                num.round = 40,
                                                array.batch.size = 50,
@@ -179,14 +183,18 @@ plot_error_development <- function(
     train_array_val,
     train_y_val,
     test_array,
-    test_y
+    test_y,
+    validation_array,
+    validation_y
 ){
     # NB! remember to remove "#" from "eval.data" in "run_convolutional_neural_network"
     # run cnn to find error in and val
     error <- run_convolutional_neural_network(neural_net_model,
                                               train_array_val,
                                               train_y_val,
-                                              test_array)
+                                              test_array,
+                                              validation_array = validation_array,
+                                              validation_y = validation_y)
     
     # extract error from results
     error_t <- error[[1]]
@@ -215,7 +223,7 @@ plot_error_development <- function(
         theme_bw() +
         theme(legend.position = c(0.8, 0.355),
               legend.background = element_rect(fill=alpha('white', 0)))
-    ggplot_to_latex(ggplot1, paste0(path_to_here, "/results_NN/convolutional_neural_network_40_rounds"),
+    ggplot_to_latex(ggplot1, paste0(path_to_here, "/results_NN/98_attempt_convolutional_neural_network_40_rounds"),
                     width = 6, height = 4)
 }
 
@@ -234,7 +242,7 @@ predict_on_test_set <- function(
     predicted <- predicted[[2]]
     
     create_confusion_matrix(as.factor(predicted), test_y,
-                            paste0(path_to_here, "/results_NN/convolutional_neural_network_40_rounds"))
+                            paste0(path_to_here, "/results_NN/convolutional_neural_network_40_rounds_test"))
 }
 
 # Give predictions on unclassified data
@@ -262,7 +270,7 @@ predict_on_unclassified_data <- function(
 main <- function()
     {
     # Validation used under tuning, set to false so it does run after tuning
-    validation_boolean <- FALSE
+    validation_boolean <- TRUE
     # Test used under testing of the final tuned model to compare with other methods
     train_boolean <- FALSE
     
@@ -274,7 +282,9 @@ main <- function()
                                train_array_val,
                                train_y_val,
                                test_array,
-                               test_y)
+                               test_y,
+                               validation_array,
+                               validation_y)
     }
     
     if(train_boolean){
