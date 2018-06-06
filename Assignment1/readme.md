@@ -8,8 +8,8 @@ the Legendre polynomials are presented and their use in the target function used
 different amount of noise it. Then different ordered Legendre polynomials are fitted to the data set.
 For more, please read the "assignment1Report" pdf.
 
-####Legendre polinomial of *q*-th order
+#### Legendre polinomial of *q*-th order
 
-$$L(x) = 2^q \sum_{k=0}^{q} x^k \binom{q}{k} \binom{\frac{q+k-1}{2}}{q}$$
+\\[ L(x) = 2^q \sum_{k=0}^{q} x^k \binom{q}{k} \binom{\frac{q+k-1}{2}}{q}\\]
 
 ![alt text](results/task1_plots/task1i.png "Legendre polinomials 0-5th order")
